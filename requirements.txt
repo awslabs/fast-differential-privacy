@@ -1,0 +1,12 @@
+torch~=1.11.0
+prv-accountant
+transformers>=4.20.1
+numpy
+scipy
+jupyterlab
+jupyter
+opacus>=1.0
+ml-swissknife
+opt_einsum
+pytest
+tqdm>=4.62.1

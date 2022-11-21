@@ -1,0 +1,3 @@
+torchvision
+opacus>=1.0
+timm>=0.6.2
