@@ -57,4 +57,4 @@ Same arguments `[lr, epochs, bs, mini_bs, epsilon, clipping mode, model]` as the
 
 2. To reproduce DP image classification and compare with other packages, we refer to [private-vision](https://github.com/woodyx218/private_vision) (covering GhostClip, MixGhostClip, Opacus-like optimization) and [Opacus](https://github.com/pytorch/opacus). Different packages and clipping modes should produce the same accuracy. Note that training more epochs with larger noise usually gives better accuracy.
 
-3. Generally speaking, GhostClip is inefficient for large image (try 512*512 image with resnet18), Opacus is inefficient for large model (try 224*224 image with BEiT-large). Hence we improve on mixed ghost norm from [Bu et al.](https://arxiv.org/abs/2205.10683) to use GhostClip or Opacus at different layers.
+3. Generally speaking, GhostClip is inefficient for large image (try 512X512 image with resnet18), Opacus is inefficient for large model (try 224X224 image with BEiT-large). Hence we improve on mixed ghost norm from [Bu et al.](https://arxiv.org/abs/2205.10683) to use GhostClip or Opacus at different layers.
