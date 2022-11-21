@@ -12,6 +12,7 @@ pip install -r requirements.txt --no-dependencies
 
 E2E and DART datasets are adapted from \[[Li & Liang, 2021](https://arxiv.org/abs/2101.00190)\] and hosted by \[[Li et al., 2021](https://arxiv.org/abs/2110.05679)\] at [Google drive](https://drive.google.com/file/d/1Re1wyUPtS3IalSsVVJhSg2sn8UNa7DM7/view?usp=sharing). To obtain the data, run
 ```plaintext
+gdown https://drive.google.com/uc?id=1Re1wyUPtS3IalSsVVJhSg2sn8UNa7DM7
 unzip prefix-tuning.zip
 ```
 This should produce a `table2text/prefix-tuning/data` subfolder that contains the datasets.
