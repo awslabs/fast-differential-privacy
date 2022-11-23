@@ -16,7 +16,7 @@ fire
 fusepy==2.0.4
 future==0.18.2
 gdown>=3.13.0
-httplib2==0.17.4
+httplib2==0.19.0
 idna==3.2
 imageio==2.9.0
 indexed-gzip-fileobj-fork-epicfaace==1.5.4
