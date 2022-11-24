@@ -12,3 +12,4 @@ pytest
 tqdm>=4.62.1
 huggingface_hub
 timm>=0.6.12
+torch_vision
