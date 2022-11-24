@@ -39,7 +39,7 @@ class PrivacyEngine(object):
         target_epsilon: Optional[float] = None,
         target_delta: Optional[float] = None,
         alphas: Sequence[float] = accounting_manager.DEFAULT_ALPHAS,
-        record_snr: bool = True,
+        record_snr: bool = False,
         named_params: Optional[Sequence] = None,
         numerical_stability_constant=None,
         accounting_mode="rdp",
