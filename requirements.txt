@@ -10,6 +10,6 @@ ml-swissknife
 opt_einsum
 pytest
 tqdm>=4.62.1
-huggingface_hub
-timm>=0.6.12
+huggingface_hub<=0.10
+timm>=0.6.2
 torchvision
