@@ -693,6 +693,8 @@ def main():
     else:
         total_train_batch_size = training_args.gradient_accumulation_steps * training_args.per_device_train_batch_size
 
+        origin_params=None if model_args.bias_only or model_args.attention_only else ['_embeddings']
+
         privacy_engine = PrivacyEngine(
             module=model,
             batch_size=total_train_batch_size,
@@ -706,7 +708,7 @@ def main():
             clipping_mode=privacy_args.clipping_mode,
             clipping_fn=privacy_args.clipping_fn,
             clipping_style=privacy_args.clipping_style,
-            origin_params=['_embeddings'],
+            origin_params=origin_params,
             )
 
         # Originally, it could have been null.
