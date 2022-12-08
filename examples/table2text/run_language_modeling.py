@@ -253,6 +253,8 @@ def main():
         privacy_args.per_example_max_grad_norm = None
     else:
         actual_batch_size = training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps
+        origin_params=None if model_args.bias_only or model_args.attention_only else ['wte','wpe']
+
         privacy_engine = PrivacyEngine(
             module=model,
             batch_size=actual_batch_size,
@@ -266,7 +268,7 @@ def main():
             clipping_mode=privacy_args.clipping_mode,
             clipping_fn=privacy_args.clipping_fn,
             clipping_style=privacy_args.clipping_style,
-            origin_params=['wte','wpe'],
+            origin_params=origin_params,
         )
 
         # Originally, these could have been null.
