@@ -2,7 +2,7 @@ argcomplete==1.12.1
 avro-python3==1.9.2.1
 azure-storage-blob==12.4.0
 bottle==0.12.19
-certifi==2021.5.30
+certifi==2022.12.7
 chardet==3.0.4
 charset-normalizer==2.0.4
 click==8.0.1
