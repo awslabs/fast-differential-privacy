@@ -183,8 +183,8 @@ def _compute_group_norm_grad_sample(
         _create_or_extend_norm_sample(layer.weight, grad_sample.norm(2, dim=1))
 
     if layer.bias is not None:
-        grad_sample = torch.einsum("ni...->ni", B)
-        _create_or_extend_norm_sample(layer.bias, grad_sample.norm(2, dim=1))
+        grad_sample = sum_over_all_but_batch_and_last_n(B, layer.bias.dim())        
+        _create_or_extend_norm_sample(layer.bias, grad_sample.flatten(start_dim=1).norm(2, dim=1))
         _create_or_extend_grad_sample(layer.bias, grad_sample)
 
 
@@ -203,8 +203,8 @@ def _compute_instance_norm_grad_sample(
         _create_or_extend_norm_sample(layer.weight, grad_sample.norm(2, dim=1))
 
     if layer.bias is not None:
-        grad_sample = torch.einsum("ni...->ni", B)
-        _create_or_extend_norm_sample(layer.bias, grad_sample.norm(2, dim=1))
+        grad_sample = sum_over_all_but_batch_and_last_n(B, layer.bias.dim())        
+        _create_or_extend_norm_sample(layer.bias, grad_sample.flatten(start_dim=1).norm(2, dim=1))
         _create_or_extend_grad_sample(layer.bias, grad_sample)
         
 def _compute_embedding_grad_sample(layer: nn.Embedding, A: torch.Tensor, B: torch.Tensor, clipping_mode: str) -> None:
