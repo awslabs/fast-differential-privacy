@@ -176,9 +176,10 @@ def _compute_group_norm_grad_sample(
     
     """Computes per sample gradients for normalization layers."""
     if A!=None:
-        grad_sample = torch.einsum(
-            "ni...->ni", F.group_norm(A, layer.num_groups, eps=layer.eps) * B)
-    
+        grad_sample = sum_over_all_but_batch_and_last_n(
+            F.group_norm(A, layer.num_groups, eps=layer.eps) * B,
+            layer.weight.dim(),
+        )
         _create_or_extend_norm_sample(layer.weight, grad_sample.norm(2, dim=1))
 
     if layer.bias is not None:
@@ -186,6 +187,26 @@ def _compute_group_norm_grad_sample(
         _create_or_extend_norm_sample(layer.bias, grad_sample.norm(2, dim=1))
         _create_or_extend_grad_sample(layer.bias, grad_sample)
 
+
+def _compute_instance_norm_grad_sample(
+    layer: nn.InstanceNorm2d,
+    A: torch.Tensor, B: torch.Tensor, 
+    clipping_mode: str
+) -> None:
+    
+    """Computes per sample gradients for normalization layers."""
+    if A!=None:
+        grad_sample = sum_over_all_but_batch_and_last_n(
+            F.instance_norm(A, eps=layer.eps) * B,
+            layer.weight.dim(),
+        )    
+        _create_or_extend_norm_sample(layer.weight, grad_sample.norm(2, dim=1))
+
+    if layer.bias is not None:
+        grad_sample = torch.einsum("ni...->ni", B)
+        _create_or_extend_norm_sample(layer.bias, grad_sample.norm(2, dim=1))
+        _create_or_extend_grad_sample(layer.bias, grad_sample)
+        
 def _compute_embedding_grad_sample(layer: nn.Embedding, A: torch.Tensor, B: torch.Tensor, clipping_mode: str) -> None:
     """Computes per sample gradients for `nn.Embedding` layer."""
     if clipping_mode in ['MixGhostClip','MixOpt']:
@@ -269,23 +290,6 @@ def _compute_t5_layer_norm_grad_sample(layer: T5LayerNorm, A: torch.Tensor, B: t
     _create_or_extend_norm_sample(layer.weight, norm_sample)
 
 
-def _compute_instance_norm_grad_sample(
-    layer: nn.InstanceNorm2d,
-    A: torch.Tensor, B: torch.Tensor, 
-    clipping_mode: str
-) -> None:
-    
-    """Computes per sample gradients for normalization layers."""
-    if A!=None:
-        grad_sample = torch.einsum("ni...->ni", F.instance_norm(A, eps=layer.eps) * B)
-    
-        _create_or_extend_norm_sample(layer.weight, grad_sample.norm(2, dim=1))
-
-    if layer.bias is not None:
-        grad_sample = torch.einsum("ni...->ni", B)
-        _create_or_extend_norm_sample(layer.bias, grad_sample.norm(2, dim=1))
-        _create_or_extend_grad_sample(layer.bias, grad_sample)
-        
 
 
 #% compute clipped weight gradient    
