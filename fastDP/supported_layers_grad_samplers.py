@@ -133,7 +133,7 @@ def _compute_linear_grad_sample(layer: nn.Linear, A: torch.Tensor, B: torch.Tens
             _create_or_extend_norm_sample(layer.weight, _light_linear_weight_norm_sample(A, B))
         else:
             ## Or use Line 105 (v0.1.0) https://github.com/lxuechen/private-transformers/blob/main/private_transformers/privacy_utils/supported_layers_grad_samplers.py
-            layer.weight.grad_sample = torch.einsum('b...d, b...p-> bdp', A, B)
+            layer.weight.grad_sample = torch.einsum('b...d, b...p-> bpd', A, B)
             _create_or_extend_norm_sample(layer.weight, torch.sqrt(torch.sum(layer.weight.grad_sample**2, dim=(1, 2))))
             if clipping_mode!='MixOpt':
                 del layer.weight.grad_sample
