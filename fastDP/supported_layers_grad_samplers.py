@@ -176,14 +176,11 @@ def _compute_group_norm_grad_sample(
     
     """Computes per sample gradients for normalization layers."""
     if A!=None:
-        grad_sample = sum_over_all_but_batch_and_last_n(
-            F.group_norm(A, layer.num_groups, eps=layer.eps) * B,
-            layer.weight.dim(),
-        )
+        grad_sample = torch.einsum('bi...->bi',F.group_norm(A, layer.num_groups, eps=layer.eps) * B)
         _create_or_extend_norm_sample(layer.weight, grad_sample.norm(2, dim=1))
 
     if layer.bias is not None:
-        grad_sample = sum_over_all_but_batch_and_last_n(B, layer.bias.dim())        
+        grad_sample = torch.einsum('bi...->bi',B)
         _create_or_extend_norm_sample(layer.bias, grad_sample.flatten(start_dim=1).norm(2, dim=1))
         _create_or_extend_grad_sample(layer.bias, grad_sample)
 
@@ -196,14 +193,11 @@ def _compute_instance_norm_grad_sample(
     
     """Computes per sample gradients for normalization layers."""
     if A!=None:
-        grad_sample = sum_over_all_but_batch_and_last_n(
-            F.instance_norm(A, eps=layer.eps) * B,
-            layer.weight.dim(),
-        )    
+        grad_sample = torch.einsum('bi...->bi',F.instance_norm(A, eps=layer.eps) * B)
         _create_or_extend_norm_sample(layer.weight, grad_sample.norm(2, dim=1))
 
     if layer.bias is not None:
-        grad_sample = sum_over_all_but_batch_and_last_n(B, layer.bias.dim())        
+        grad_sample = torch.einsum('bi...->bi', B)
         _create_or_extend_norm_sample(layer.bias, grad_sample.flatten(start_dim=1).norm(2, dim=1))
         _create_or_extend_grad_sample(layer.bias, grad_sample)
         
@@ -314,15 +308,11 @@ def _clip_layer_norm_grad(layer: nn.LayerNorm, A: torch.Tensor, B: torch.Tensor,
     return grad_weight
         
 def _clip_group_norm_grad(layer: nn.GroupNorm, A: torch.Tensor, B: torch.Tensor, C) -> None:
-    grad_weight = sum_over_all_but_batch_and_last_n(
-        F.group_norm(A, layer.num_groups, eps=layer.eps) * B,
-        layer.weight.dim(),).sum(dim=0)
+    grad_weight = torch.einsum('bi...->i',F.group_norm(A, layer.num_groups, eps=layer.eps) * B)
     return grad_weight
 
 def _clip_instance_norm_grad(layer, A: torch.Tensor, B: torch.Tensor, C) -> None:
-    grad_weight = sum_over_all_but_batch_and_last_n(
-        F.instance_norm(A, eps=layer.eps) * B,
-        layer.weight.dim(),).sum(dim=0)
+    grad_weight = torch.einsum('bi...->i',F.instance_norm(A, eps=layer.eps) * B)
     return grad_weight
 
 def _clip_embedding_grad(layer: nn.Embedding, A: torch.Tensor, B: torch.Tensor, C) -> None:
