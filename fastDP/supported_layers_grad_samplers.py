@@ -314,13 +314,15 @@ def _clip_layer_norm_grad(layer: nn.LayerNorm, A: torch.Tensor, B: torch.Tensor,
     return grad_weight
         
 def _clip_group_norm_grad(layer: nn.GroupNorm, A: torch.Tensor, B: torch.Tensor, C) -> None:
-    grad_weight = torch.einsum(
-        "bi...->i", F.group_norm(A, layer.num_groups, eps=layer.eps) * B)
+    grad_weight = sum_over_all_but_batch_and_last_n(
+        F.group_norm(A, layer.num_groups, eps=layer.eps) * B,
+        layer.weight.dim(),).sum(dim=0)
     return grad_weight
 
 def _clip_instance_norm_grad(layer, A: torch.Tensor, B: torch.Tensor, C) -> None:
-    grad_weight = torch.einsum(
-        "bi...->i", F.instance_norm(A, eps=layer.eps) * B)
+    grad_weight = sum_over_all_but_batch_and_last_n(
+        F.instance_norm(A, eps=layer.eps) * B,
+        layer.weight.dim(),).sum(dim=0)
     return grad_weight
 
 def _clip_embedding_grad(layer: nn.Embedding, A: torch.Tensor, B: torch.Tensor, C) -> None:
