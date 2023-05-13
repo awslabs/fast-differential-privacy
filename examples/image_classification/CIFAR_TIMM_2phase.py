@@ -59,7 +59,6 @@ def main(args):
         noise_multiplier=sigma,
         epochs=args.epochs,
         clipping_mode='MixOpt',
-        clipping_style=args.clipping_style,
     )
     privacy_engine.attach(optimizer)        
 
@@ -81,6 +80,9 @@ def main(args):
             if ((batch_idx + 1) % n_acc_steps == 0) or ((batch_idx + 1) == len(trainloader)):
                 optimizer.step()
                 optimizer.zero_grad()                    
+            else:
+                # accumulate per-example gradients but don't take a step yet
+                optimizer.virtual_step()
 
             train_loss += loss.item()
             _, predicted = outputs.max(1)
@@ -149,7 +151,6 @@ if __name__ == '__main__':
     parser.add_argument('--mini_bs', type=int, default=50)
     parser.add_argument('--cifar_data', type=str, default='CIFAR10')
     parser.add_argument('--mix_epoch', type=int, default=1)
-    parser.add_argument('--clipping_style', type=str, default='all-layer')
 
     args = parser.parse_args()
     

@@ -9,9 +9,14 @@ from transformers import (
     PreTrainedTokenizer
 )
 
-from .compiled_args import DataTrainingArguments
-from .data_utils.data_collator import DataCollatorForData2TextLanguageModeling
-from .data_utils.language_modeling import LineByLineE2ETextDataset, LineByLineTriplesTextDataset
+try:
+    from .compiled_args import DataTrainingArguments
+    from .data_utils.data_collator import DataCollatorForData2TextLanguageModeling
+    from .data_utils.language_modeling import LineByLineE2ETextDataset, LineByLineTriplesTextDataset
+except:
+    from compiled_args import DataTrainingArguments
+    from data_utils.data_collator import DataCollatorForData2TextLanguageModeling
+    from data_utils.language_modeling import LineByLineE2ETextDataset, LineByLineTriplesTextDataset
 
 
 def get_dataset_with_path(

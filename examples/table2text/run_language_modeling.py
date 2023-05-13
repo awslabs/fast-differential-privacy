@@ -30,10 +30,10 @@ from transformers.models.gpt2 import GPT2Tokenizer
 from transformers.optimization import get_linear_schedule_with_warmup
 
 from fastDP import PrivacyEngine
-from .compiled_args import (DataTrainingArguments, ModelArguments, PrivacyArguments,
+from compiled_args import (DataTrainingArguments, ModelArguments, PrivacyArguments,
                             TrainingArguments)
-from .misc import get_all_datasets, get_prompt_dataset
-from .trainer import Trainer
+from misc import get_all_datasets, get_prompt_dataset
+from trainer import Trainer
 
 logger = logging.getLogger(__name__)
 
@@ -93,33 +93,53 @@ def main():
         import warnings
         warnings.filterwarnings("error")
 
-    # Low rank models need special models!
-    from transformers.models.gpt2 import GPT2Config, GPT2LMHeadModel
-
     # Config.
-    config = GPT2Config.from_pretrained(model_args.model_name_or_path, cache_dir=model_args.cache_dir)
-    config.return_dict = True
-    config.tie_word_embeddings = False
+    if 'gpt2' in model_args.model_name_or_path:
+        from transformers.models.gpt2 import GPT2Config, GPT2LMHeadModel
+        config = GPT2Config.from_pretrained(model_args.model_name_or_path, cache_dir=model_args.cache_dir)
+        config.return_dict = True
+        config.tie_word_embeddings = False
 
-    # Tokenizer; `bos_token` and `eos_token` is the same for GPT2; both are 50256.
-    tokenizer = GPT2Tokenizer.from_pretrained(model_args.model_name_or_path, cache_dir=model_args.cache_dir)
+        # Tokenizer; `bos_token` and `eos_token` is the same for GPT2; both are 50256.
+        tokenizer = GPT2Tokenizer.from_pretrained(model_args.model_name_or_path, cache_dir=model_args.cache_dir)
 
-    # Model.
-    gpt2 = GPT2LMHeadModel.from_pretrained(
-        model_args.model_name_or_path,
-        config=config,
-        cache_dir=model_args.cache_dir,
-    )
-    print(f'base gpt2 model: {model_args.model_name_or_path}')
-    print(gpt2)
+        # Model.
+        gpt_model = GPT2LMHeadModel.from_pretrained(
+            model_args.model_name_or_path,
+            config=config,
+            cache_dir=model_args.cache_dir,
+        )
+        print(f'base gpt2 model: {model_args.model_name_or_path}')
+        print(gpt_model)
+    elif 'gptj' in model_args.model_name_or_path:
+        from transformers import AutoTokenizer, AutoModelForCausalLM
+        tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-j-6B")
+        gpt_model = AutoModelForCausalLM.from_pretrained("EleutherAI/gpt-j-6B")
+        config = gpt_model.config
+    elif 'min' in model_args.model_name_or_path:
+        from mingpt.model import GPT
+        tokenizer = GPT2Tokenizer.from_pretrained("gpt2", cache_dir=model_args.cache_dir)
+        minGPT_config = GPT.get_default_config()
+        minGPT_config.vocab_size = len(tokenizer)
+        minGPT_config.block_size = tokenizer.model_max_length
+        # print(minGPT_config)
+        # print(GPT.__dict__)
+        minGPT_config.model_type = None
+        minGPT_config.n_layer = 2
+        minGPT_config.n_head = 8
+        minGPT_config.n_embd = 768
+        gpt_model = GPT(minGPT_config)
+        config = gpt_model.config
+
 
     # Clone the embedding into the lm_head for better initialization.
-    lm_head = gpt2.get_output_embeddings()
-    embedding = gpt2.get_input_embeddings()
+    # if not 'min' in model_args.model_name_or_path:
+    lm_head = gpt_model.get_output_embeddings()
+    embedding = gpt_model.get_input_embeddings()
     lm_head.weight.data.copy_(embedding.weight.data)
     print(f'Cloning initial embedding into lm_head, '
-          f'checking norms... \n'
-          f'\tlm_head: {lm_head.weight.norm()}, embedding: {embedding.weight.norm()}')
+        f'checking norms... \n'
+        f'\tlm_head: {lm_head.weight.norm()}, embedding: {embedding.weight.norm()}')
     torch.testing.assert_allclose(lm_head.weight, embedding.weight)
     del lm_head, embedding
 
@@ -139,12 +159,12 @@ def main():
     print('adapt the size of lm_head and input_embeddings to include [PAD]')
     print('use avg-based initialization')
 
-    input_embeddings_before = gpt2.get_input_embeddings().weight
-    lm_head_before = gpt2.get_output_embeddings().weight
-    gpt2.resize_token_embeddings(len(tokenizer))
+    input_embeddings_before = gpt_model.get_input_embeddings().weight
+    lm_head_before = gpt_model.get_output_embeddings().weight
+    gpt_model.resize_token_embeddings(len(tokenizer))
 
-    input_embeddings_after = gpt2.get_input_embeddings().weight
-    lm_head_after = gpt2.get_output_embeddings().weight
+    input_embeddings_after = gpt_model.get_input_embeddings().weight
+    lm_head_after = gpt_model.get_output_embeddings().weight
     print(
         f'before lm_head.weight.size() = {lm_head_before.size()}, '
         f'input_embeddings_before.size() = {input_embeddings_before.size()}'
@@ -161,9 +181,9 @@ def main():
     input_embeddings_after.data[-1] = input_embeddings_before.mean(dim=0)
 
     print('double check: ')
-    print('embedding size', gpt2.get_input_embeddings().weight.size())
-    print('lm_head size', gpt2.get_output_embeddings().weight.size())
-    model = gpt2
+    print('embedding size', gpt_model.get_input_embeddings().weight.size())
+    print('lm_head size', gpt_model.get_output_embeddings().weight.size())
+    model = gpt_model
 
     train_dataset, val_dataset, eval_dataset, data_collator = get_all_datasets(
         config=config,
@@ -235,6 +255,16 @@ def main():
     trainer.optimizer = optimizer
 
     # Create the lr_scheduler.
+    try:
+        num_GPUs=torch.distributed.get_world_size()
+    except:
+        num_GPUs=1
+        
+    if training_args.logical_batch_size!=None:
+        trainer.args.gradient_accumulation_steps=training_args.logical_batch_size/training_args.per_device_train_batch_size/num_GPUs
+    else:
+        training_args.logical_batch_size=trainer.args.gradient_accumulation_steps*training_args.per_device_train_batch_size*num_GPUs
+
     num_update_steps_per_epoch = len(trainer.get_train_dataloader()) // trainer.args.gradient_accumulation_steps
     num_update_steps_per_epoch = max(num_update_steps_per_epoch, 1)
     t_total = int(num_update_steps_per_epoch * trainer.args.num_train_epochs)
@@ -252,12 +282,11 @@ def main():
         privacy_args.noise_multiplier = 0.
         privacy_args.per_example_max_grad_norm = None
     else:
-        actual_batch_size = training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps
-        origin_params=None if model_args.bias_only or model_args.attention_only else ['wte','wpe']
+        origin_params=None if model_args.bias_only or model_args.attention_only or training_args.deepspeed_config else ['wte','wpe']
 
         privacy_engine = PrivacyEngine(
             module=model,
-            batch_size=actual_batch_size,
+            batch_size=training_args.logical_batch_size,
             sample_size=len(train_dataset),
             epochs=training_args.num_train_epochs,
             max_grad_norm=privacy_args.per_example_max_grad_norm,
@@ -269,6 +298,8 @@ def main():
             clipping_fn=privacy_args.clipping_fn,
             clipping_style=privacy_args.clipping_style,
             origin_params=origin_params,
+            num_GPUs=num_GPUs,
+            torch_seed_is_fixed=True,
         )
 
         # Originally, these could have been null.
@@ -277,7 +308,9 @@ def main():
 
         print('privacy_args: ')
         print(json.dumps(privacy_args.__dict__, indent=4))
-        privacy_engine.attach(optimizer)
+        if not training_args.deepspeed_config:
+            privacy_engine.attach(optimizer)
+        # privacy_engine.attach(optimizer)
 
     # Training.
     if training_args.do_train:

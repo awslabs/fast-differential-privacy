@@ -1,4 +1,4 @@
-torch~=1.11.0+cu113
+torch~=1.11.0
 prv-accountant
 transformers>=4.20.1
 numpy
@@ -10,6 +10,3 @@ ml-swissknife
 opt_einsum
 pytest
 tqdm>=4.62.1
-huggingface_hub<=0.10
-timm>=0.6.2
-torchvision

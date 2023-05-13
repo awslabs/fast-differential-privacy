@@ -582,7 +582,7 @@ def main():
     elif model_args.bias_only:
         for name, param in model.named_parameters():
             if '.bias' not in name:
-                param.requires_grad_(False)        
+                param.requires_grad_(False)
         if model_args.static_lm_head and hasattr(model, 'lm_head'):
             model.lm_head.requires_grad_(False)
     else:
@@ -692,9 +692,67 @@ def main():
         privacy_args.per_example_max_grad_norm = None
     else:
         total_train_batch_size = training_args.gradient_accumulation_steps * training_args.per_device_train_batch_size
+        print(type(privacy_args.clipping_style),privacy_args.clipping_style)
+        
+        if model_args.model_name_or_path=='roberta-base':
+            if privacy_args.clipping_style=='2':
+                privacy_args.clipping_style=['roberta.embeddings.word_embeddings','roberta.encoder.layer.6.attention.self.query']
+            if privacy_args.clipping_style=='3':
+                privacy_args.clipping_style=['roberta.embeddings.word_embeddings','roberta.encoder.layer.4.attention.self.query',
+                                             'roberta.encoder.layer.8.attention.self.query']
+            if privacy_args.clipping_style=='4':
+                privacy_args.clipping_style=['roberta.embeddings.word_embeddings','roberta.encoder.layer.3.attention.self.query',
+                                             'roberta.encoder.layer.6.attention.self.query','roberta.encoder.layer.9.attention.self.query']
+            if privacy_args.clipping_style=='6':
+                privacy_args.clipping_style=['roberta.embeddings.word_embeddings','roberta.encoder.layer.2.attention.self.query',
+                                             'roberta.encoder.layer.4.attention.self.query','roberta.encoder.layer.6.attention.self.query',
+                                             'roberta.encoder.layer.8.attention.self.query','roberta.encoder.layer.10.attention.self.query',]
+            if privacy_args.clipping_style=='12':
+                privacy_args.clipping_style=['roberta.embeddings.word_embeddings','roberta.encoder.layer.1.attention.self.query',
+                                             'roberta.encoder.layer.2.attention.self.query','roberta.encoder.layer.3.attention.self.query',
+                                             'roberta.encoder.layer.4.attention.self.query','roberta.encoder.layer.5.attention.self.query',
+                                             'roberta.encoder.layer.6.attention.self.query','roberta.encoder.layer.7.attention.self.query',
+                                             'roberta.encoder.layer.8.attention.self.query','roberta.encoder.layer.9.attention.self.query',
+                                             'roberta.encoder.layer.10.attention.self.query','roberta.encoder.layer.11.attention.self.query',]
+            if privacy_args.clipping_style=='non-uniform2':
+                privacy_args.clipping_style=['roberta.embeddings.word_embeddings','roberta.encoder.layer.8.attention.self.query']
+
+        elif model_args.model_name_or_path=='roberta-large':
+            if privacy_args.clipping_style=='2':
+                privacy_args.clipping_style=['roberta.embeddings.word_embeddings','roberta.encoder.layer.12.attention.self.query']
+            if privacy_args.clipping_style=='3':
+                privacy_args.clipping_style=['roberta.embeddings.word_embeddings','roberta.encoder.layer.8.attention.self.query',
+                                             'roberta.encoder.layer.16.attention.self.query']
+            if privacy_args.clipping_style=='4':
+                privacy_args.clipping_style=['roberta.embeddings.word_embeddings','roberta.encoder.layer.6.attention.self.query',
+                                             'roberta.encoder.layer.12.attention.self.query','roberta.encoder.layer.18.attention.self.query']
+            if privacy_args.clipping_style=='6':
+                privacy_args.clipping_style=['roberta.embeddings.word_embeddings','roberta.encoder.layer.4.attention.self.query',
+                                             'roberta.encoder.layer.8.attention.self.query','roberta.encoder.layer.12.attention.self.query',
+                                             'roberta.encoder.layer.16.attention.self.query','roberta.encoder.layer.20.attention.self.query',]
+            if privacy_args.clipping_style=='12':
+                privacy_args.clipping_style=['roberta.embeddings.word_embeddings','roberta.encoder.layer.2.attention.self.query',
+                                             'roberta.encoder.layer.4.attention.self.query','roberta.encoder.layer.6.attention.self.query',
+                                             'roberta.encoder.layer.8.attention.self.query','roberta.encoder.layer.10.attention.self.query',
+                                             'roberta.encoder.layer.12.attention.self.query','roberta.encoder.layer.14.attention.self.query',
+                                             'roberta.encoder.layer.16.attention.self.query','roberta.encoder.layer.18.attention.self.query',
+                                             'roberta.encoder.layer.20.attention.self.query','roberta.encoder.layer.22.attention.self.query',]
+            if privacy_args.clipping_style=='24':
+                privacy_args.clipping_style=['roberta.embeddings.word_embeddings','roberta.encoder.layer.1.attention.self.query',
+                                             'roberta.encoder.layer.2.attention.self.query','roberta.encoder.layer.3.attention.self.query',
+                                             'roberta.encoder.layer.4.attention.self.query','roberta.encoder.layer.5.attention.self.query',
+                                             'roberta.encoder.layer.6.attention.self.query','roberta.encoder.layer.7.attention.self.query',
+                                             'roberta.encoder.layer.8.attention.self.query','roberta.encoder.layer.9.attention.self.query',
+                                             'roberta.encoder.layer.10.attention.self.query','roberta.encoder.layer.11.attention.self.query',
+                                             'roberta.encoder.layer.12.attention.self.query','roberta.encoder.layer.13.attention.self.query',
+                                             'roberta.encoder.layer.14.attention.self.query','roberta.encoder.layer.15.attention.self.query',
+                                             'roberta.encoder.layer.16.attention.self.query','roberta.encoder.layer.17.attention.self.query',
+                                             'roberta.encoder.layer.18.attention.self.query','roberta.encoder.layer.19.attention.self.query',
+                                             'roberta.encoder.layer.20.attention.self.query','roberta.encoder.layer.21.attention.self.query',
+                                             'roberta.encoder.layer.22.attention.self.query','roberta.encoder.layer.23.attention.self.query',]
 
         origin_params=None if model_args.bias_only or model_args.attention_only else ['_embeddings']
-
+        
         privacy_engine = PrivacyEngine(
             module=model,
             batch_size=total_train_batch_size,
@@ -873,4 +931,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    #from pytorch_memlab import LineProfiler
+    #with LineProfiler(main) as prof:
+        main()
+    #print(prof.display())

@@ -98,6 +98,7 @@ class DataTrainingArguments:
         default=False, metadata={"help": "Overwrite the cached training and evaluation sets"}
     )
     max_seq_len: int = field(default=sys.maxsize)
+    
 
     def __post_init__(self):
         if self.data_folder is not None:
@@ -135,6 +136,10 @@ class TrainingArguments(transformers.TrainingArguments):
     ema_model_start_from: int = field(default=1000)
     lr_decay: str = field(default="yes")
     eval_epochs: int = field(default=10)
+
+    deepspeed_config: str = field(default=None)
+    num_GPUs: int = field(default=1)
+    logical_batch_size: int = field(default=None)
 
     evaluate_during_training: str = field(
         default="yes",
@@ -187,6 +192,7 @@ class PrivacyArguments:
     clipping_mode: str = field(default="ghost")
     clipping_fn: str = field(default="automatic")
     clipping_style: str = field(default="all-layer")
+    torch_seed_is_fixed: bool = field(default=True)
 
     def __post_init__(self):
         self.non_private = self.non_private.lower() in ('y', 'yes')

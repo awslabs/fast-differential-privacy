@@ -37,7 +37,7 @@ def main(args):
     # Model
     print('==> Building model..', args.model,'; BatchNorm is replaced by GroupNorm. Mode: ', args.clipping_mode)
     net = timm.create_model(args.model,pretrained=True,num_classes=int(args.cifar_data[5:]))    
-    net = ModuleValidator.fix(net).to(device)
+    net = ModuleValidator.fix(net); net=net.to(device)
 
     print('Number of total parameters: ', sum([p.numel() for p in net.parameters()]))
     print('Number of trainable parameters: ', sum([p.numel() for p in net.parameters() if p.requires_grad]))
@@ -72,7 +72,6 @@ def main(args):
             epochs=args.epochs,
             clipping_mode=clipping_mode,
             origin_params=args.origin_params,#['patch_embed.proj.bias'],
-            clipping_style=args.clipping_style,
         )
         privacy_engine.attach(optimizer)        
 
@@ -142,7 +141,6 @@ if __name__ == '__main__':
     parser.add_argument('--cifar_data', type=str, default='CIFAR10')
     parser.add_argument('--dimension', type=int,default=224)
     parser.add_argument('--origin_params', nargs='+', default=None)
-    parser.add_argument('--clipping_style', type=str, default='all-layer')
 
     args = parser.parse_args()
     

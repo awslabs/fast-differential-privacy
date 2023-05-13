@@ -11,21 +11,17 @@ clipping_style=${8:-"all-layer"}
 bias_only=${9:-"no"}
 non_private=${10:-"no"}
 physical_batch_size=${11:-100}
-batch_size=${12:-1000}
-attention_only=${13:-"no"}
-static_lm_head=${14:-"no"}
-static_embedding=${15:-"no"}
+learning_rate=${12:-0.002}
+batch_size=${13:-1000}
+attention_only=${14:-"no"}
+static_lm_head=${15:-"no"}
+static_embedding=${16:-"no"}
 
 if [[ ${task_mode} == "e2e" ]]; then
   data_dir="${data_dir}/data/e2e_data"
   target_delta=8e-6
   num_train_epochs=10
   max_seq_len=100
-  if [[ ${bias_only} == "yes" ]]; then
-    learning_rate=1e-2
-  else
-    learning_rate=2e-3
-  fi
 else
   if [[ ${task_mode} == "dart" ]]; then
     target_delta=1e-5
@@ -33,12 +29,6 @@ else
     num_train_epochs=15 # Approximately same number of updates.
     learning_rate=5e-4  # Lower learning rate for stability in large models.
     max_seq_len=120
-    if [[ ${bias_only} == "yes" ]]; then
-      learning_rate=2e-3
-    else
-      learning_rate=5e-4
-    fi
-
   else
     echo "Unknown task: ${task_mode}"
     exit 1
@@ -48,7 +38,7 @@ fi
 gradient_accumulation_steps=$((${batch_size} / ${physical_batch_size}))
 
 # Arguments in the last two lines are the most important.
-python -m table2text.run_language_modeling \
+python table2text/run_language_modeling.py \
   --output_dir ${output_dir} --overwrite_output_dir \
   --task_mode ${task_mode} \
   --model_name_or_path ${model_name_or_path} \
@@ -57,8 +47,8 @@ python -m table2text.run_language_modeling \
   --line_by_line \
   --save_steps 100 --save_total_limit 1 --save_at_last no \
   --logging_dir ${output_dir} --logging_steps -1 \
-  --seed 2 \
-  --eval_steps 100 --eval_epochs 2 --max_eval_batches 100 --evaluation_strategy epoch --evaluate_before_training "no" --evaluate_during_training "yes" --per_device_eval_batch_size 10 \
+  --seed 0 \
+  --eval_steps 100 --eval_epochs 999 --max_eval_batches 100 --evaluation_strategy epoch --evaluate_before_training "no" --evaluate_during_training "no" --per_device_eval_batch_size 10 \
   --max_generations 9223372036854775807 --max_generations_train 10 --max_generations_valid 9223372036854775807 \
   --max_train_examples 9223372036854775807 --max_valid_examples 9223372036854775807 --max_eval_examples 9223372036854775807 \
   --data_folder ${data_dir} --max_seq_len ${max_seq_len} --format_mode cat \

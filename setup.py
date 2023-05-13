@@ -21,11 +21,11 @@ setuptools.setup(
     version=version,
     author="Zhiqi Bu",
     author_email="woodyx218@gmail.com",
-    description="Efficient implementation of differentially private optimization for large-scale deep learning.",
+    description="Optimally efficient implementation of differentially private optimization (with per-sample gradient clipping.",
     long_description=readme,
     url="",
     packages=setuptools.find_packages(exclude=['examples', 'tests']),
-    python_requires='~=3.7',
+    python_requires='~=3.8',
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",

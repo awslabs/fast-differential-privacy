@@ -101,7 +101,7 @@ python -m text_classification.run_classification \
 def main(
     output_dir,
     task_name,
-    few_shot_type="prompt",
+    few_shot_type="prompt", # finetune or prompt
     seed=0,
     model_name_or_path="roberta-base",
     data_dir="text_classification/data/original",

@@ -51,7 +51,7 @@ for i, batch in enumerate(dataloader):
 ```
 
 ## Highlights
-1. This library enables DP training to have almost **the same time and space complexity** as the standard non-private training. This is achieved by three key techniques as described in [4]: mixed ghost norm, book-keeping, and ghost differentiation. In practice, e.g. on GPT2, we observe <1% memory overhead and <10% slowdown.
+1. This library enables DP training to have almost **the same time and space complexity** as the standard non-private training. This is achieved by three key techniques as described in [4]: mixed ghost norm, book-keeping, and ghost differentiation. In practice, we observe <20% memory overhead and <25% slowdown across different tasks.
 
 <p align="center">
   <img width="900" height="400" src="./assets/nlp.png">

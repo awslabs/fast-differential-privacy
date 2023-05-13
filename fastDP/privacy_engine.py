@@ -19,7 +19,6 @@ import transformers
 from .supported_layers_grad_samplers import _supported_layers_norm_sample_AND_clipping
 
 
-
 class PrivacyEngine(object):
     """Differentially-private optimization engine that works in Pytorch.
 
@@ -35,6 +34,7 @@ class PrivacyEngine(object):
         sample_size: int,
         max_grad_norm: float = 1.,
         epochs: Optional[Union[int, float]] = None,
+        num_steps: Optional[Union[int, float]] = None,
         noise_multiplier: Optional[float] = None,
         target_epsilon: Optional[float] = None,
         target_delta: Optional[float] = None,
@@ -49,6 +49,8 @@ class PrivacyEngine(object):
         loss_reduction='mean',
         origin_params=None,
         clipping_style='all-layer',
+        num_GPUs=1,
+        torch_seed_is_fixed=False,
         **unused_kwargs,
     ):
 
@@ -58,10 +60,11 @@ class PrivacyEngine(object):
             module: The PyTorch module for which per-sample gradient is required.
                 Setting the `requires_grad` attribute of a parameter to False
                 disables the per-sample gradient accumulation.
-            batch_size: The expected size of Poisson-sampled batch, i.e., the lot size.
+            batch_size: The expected size of a logical batch.
             sample_size: Size of dataset.
             max_grad_norm: The maximum 2-norm for gradient clipping.
             epochs: The number of epochs for training.
+            num_steps: The number of steps for training, only used if epochs is None.
             noise_multiplier: The extra multiplier for DP-SGD noise.
             target_epsilon: The target privacy spending.
                 Only used to estimate the `noise_multiplier` if it is not set.
@@ -86,6 +89,7 @@ class PrivacyEngine(object):
             loss_reduction: Reduction of loss, one of 'sum' and 'mean'.
             origin_params: Specifies which are origin parameters as described in ghost differentiation. Can be None or list of parameter names
                 ['_embeddings','wte','wpe'] is used for roberta and GPT2. For general model, can set to first layer's bias or weight.
+            clipping_style: The clipping style to use. One of 'all-layer', 'layer-wise', 'param-wise' or an un-ordered list of layer names that represent blocks' head layer
         """
         del unused_kwargs
         super(PrivacyEngine, self).__init__()
@@ -94,6 +98,11 @@ class PrivacyEngine(object):
             raise ValueError(f"Unknown clipping mode {clipping_mode}. Expected one of 'ghost','MixGhostClip','MixOpt'.")
         if accounting_mode not in ("rdp", "all",'glw'):
             raise ValueError(f"Unknown accounting mode: {accounting_mode}. Expected one of 'rdp', 'all','glw'.")
+        if epochs is None:
+            if num_steps is not None:
+                epochs=num_steps/sample_size*batch_size
+            else:
+                raise ValueError(f"Number of training epochs and training steps are not defined.")
         if epochs <= 0.0 and noise_multiplier is None:
             raise ValueError(f"Number of training epochs cannot be non-positive, but found epochs={epochs}")
 
@@ -165,16 +174,14 @@ class PrivacyEngine(object):
 
         #-----
         def _supported_and_trainable(layer):            
-            if type(layer) in _supported_layers_norm_sample_AND_clipping:
-                if (hasattr(layer,'weight') and hasattr(layer.weight,'initially_requires_grad') and layer.weight.initially_requires_grad) or (hasattr(layer,'bias') and hasattr(layer.bias,'initially_requires_grad') and layer.bias.initially_requires_grad):
-                    return True
+            if type(layer) in _supported_layers_norm_sample_AND_clipping and ((hasattr(layer,'weight') and hasattr(layer.weight,'initially_requires_grad') and layer.weight.initially_requires_grad) or (hasattr(layer,'bias') and hasattr(layer.bias,'initially_requires_grad') and layer.bias.initially_requires_grad)):
+                return True
             return False
 
         # store layer's name and create list of named layers for blockwise clipping
         self.named_layers=[]
         for name,layer in module.named_modules():
             if _supported_and_trainable(layer):
-                layer.name=name
                 self.named_layers.append((name,layer))
 
         self.n_layers=len(self.named_layers) #sum(1 for layer in module.modules() if autograd_grad_sample.requires_grad(layer) and hasattr(layer,'weight'))
@@ -196,8 +203,21 @@ class PrivacyEngine(object):
         else:
             self.numerical_stability_constant=1e-6
         
-        self.max_grad_norm_layerwise=self.max_grad_norm
+        if clipping_style=='layer-wise':
+            self.max_grad_norm_layerwise = self.max_grad_norm / math.sqrt(self.n_layers)
+        elif clipping_style=='param-wise':
+            self.max_grad_norm_layerwise = self.max_grad_norm / math.sqrt(self.n_components)
+        elif clipping_style=='all-layer':
+            self.max_grad_norm_layerwise=self.max_grad_norm
+        else:
+            self.max_grad_norm_layerwise=self.max_grad_norm / math.sqrt(len(clipping_style))
 
+        for name,param in module.named_parameters():
+            param.batch_size = self.batch_size
+            if torch_seed_is_fixed == True:
+                param.noise = self.noise_multiplier*self.max_grad_norm / num_GPUs
+            else:
+                param.noise = self.noise_multiplier*self.max_grad_norm / math.sqrt(num_GPUs)
 
         self.loss_reduction = loss_reduction
         self.clipping_mode = clipping_mode
@@ -213,12 +233,77 @@ class PrivacyEngine(object):
             
 
         
-        self.clipping_style=clipping_style
-        self.block_heads=[]
-    
-        self.block_heads.append(self.named_layers[0][0])
+        # create list of block head layers        
+        if isinstance(clipping_style,list):
+            self.clipping_style='block-wise'
+            self.block_heads=clipping_style
+        else:            
+            self.clipping_style=clipping_style
+            self.block_heads=[]
+        
+            if self.clipping_style=='all-layer':
+                self.block_heads.append(self.named_layers[0][0])
+            elif self.clipping_style in ['layer-wise','param-wise']:
+                self.block_heads = [name for (name,layer) in self.named_layers]
+        print(">>>>>>>>>>>>>>>>> Block heads for per-sample gradient clipping are defined as:", self.block_heads)
 
         transformers_support.forward_swapper(module=module)  # fix the position embeddings broadcast issue.
+
+        autograd_grad_sample.add_hooks(model=self.module, loss_reduction=self.loss_reduction, 
+                                       clipping_mode=self.clipping_mode, bias_only=self.bias_only,
+                                       clipping_style=self.clipping_style, block_heads=self.block_heads,
+                                       named_params=self.named_params, named_layers=self.named_layers,
+                                       clipping_fn=self.clipping_fn, 
+                                       numerical_stability_constant=self.numerical_stability_constant,
+                                       max_grad_norm_layerwise=self.max_grad_norm_layerwise)
+
+
+        def get_privacy_spent(_self, **kwargs):
+            return _self.privacy_engine.get_privacy_spent(**kwargs)
+
+        def get_training_stats(_self, **kwargs):
+            return _self.privacy_engine.get_training_stats(**kwargs)
+
+        # Make getting info easier.
+        self.module.get_privacy_spent = types.MethodType(get_privacy_spent, self.module)
+        self.module.get_training_stats = types.MethodType(get_training_stats, self.module)
+
+        self.module.privacy_engine = self
+
+
+        # deepspeed stage 1 modification-----------
+        from deepspeed.runtime.zero.stage_1_and_2 import DeepSpeedZeroOptimizer
+        from deepspeed import comm as dist
+
+        def reduce_gradients_DP_stage_1(self, pipeline_parallel=False):
+            world_size = dist.get_world_size(self.dp_process_group)
+            my_rank = dist.get_rank(self.dp_process_group)
+
+            # with PP we must create ipg buffer, since backward is handled outside zero
+            if pipeline_parallel and self.contiguous_gradients:
+                self.ipg_buffer = []
+                buf_0 = torch.empty(int(self.reduce_bucket_size),
+                                    dtype=self.dtype,
+                                    device=torch.cuda.current_device())
+                self.ipg_buffer.append(buf_0)
+                self.ipg_index = 0
+
+            if not self.overlap_comm:
+                for i, group in enumerate(self.bit16_groups):
+                    for param in group:
+                        if param.grad is not None:
+                            if hasattr(param,'summed_clipped_grad'):
+                                param.grad = torch.nan_to_num(param.summed_clipped_grad).contiguous()+torch.normal(mean=0, std=param.noise,size=param.size(), device=param.device, dtype=param.dtype);#print('++++++++++++++++++',param.grad.dtype)
+                                del param.summed_clipped_grad # release memory
+                                param.grad = param.grad / param.batch_size * self.loss_scale # it works
+                            else:
+                                param.grad.zero_()
+
+                            self.reduce_ready_partitions_and_remove_grads(param, i)
+            # reduce any pending grads in either hook/non-hook case
+            self.overlapping_partition_gradients_reduce_epilogue()
+
+        DeepSpeedZeroOptimizer.reduce_gradients = reduce_gradients_DP_stage_1
 
     def lock(self):
         """Run this after noisy clipped gradient is created to prevent tampering with it before parameter update."""
@@ -229,13 +314,6 @@ class PrivacyEngine(object):
         self._locked = False
 
     def attach(self, optimizer):
-        autograd_grad_sample.add_hooks(model=self.module, loss_reduction=self.loss_reduction, 
-                                       clipping_mode=self.clipping_mode, bias_only=self.bias_only,
-                                       clipping_style=self.clipping_style, block_heads=self.block_heads,
-                                       named_params=self.named_params, named_layers=self.named_layers,
-                                       clipping_fn=self.clipping_fn, 
-                                       numerical_stability_constant=self.numerical_stability_constant,
-                                       max_grad_norm_layerwise=self.max_grad_norm_layerwise)
 
         # Override step.
         def dp_step(_self, **kwargs):
@@ -247,26 +325,21 @@ class PrivacyEngine(object):
             _self.privacy_engine.unlock()  # Only enable creating new grads once parameters are updated.
             _self.privacy_engine.steps += 1
 
+
+        optimizer.privacy_engine = self
+
+        optimizer.original_step = optimizer.step
+        optimizer.step = types.MethodType(dp_step, optimizer)        
+
         def get_privacy_spent(_self, **kwargs):
             return _self.privacy_engine.get_privacy_spent(**kwargs)
 
         def get_training_stats(_self, **kwargs):
             return _self.privacy_engine.get_training_stats(**kwargs)
 
-        optimizer.privacy_engine = self
-
-        optimizer.original_step = optimizer.step
-        optimizer.step = types.MethodType(dp_step, optimizer)
-
         # Make getting info easier.
         optimizer.get_privacy_spent = types.MethodType(get_privacy_spent, optimizer)
         optimizer.get_training_stats = types.MethodType(get_training_stats, optimizer)
-
-        self.module.privacy_engine = self
-
-        # For easy detaching.
-        self.optimizer = optimizer
-        
 
 
     def detach(self):
@@ -295,6 +368,32 @@ class PrivacyEngine(object):
     def _create_noisy_clipped_gradient(self):
         """Create noisy clipped gradient for `optimizer.step`."""
         
+        '''
+        BKtime=0;nonDPtime=0;GhostCliptime=0;Opacustime=0
+        BKspace=0;nonDPspace=0;GhostClipspace=0;Opacusspace=0
+
+        for name,layer in self.named_layers:
+            if hasattr(layer,'BKtime'):
+                BKtime+=layer.BKtime
+                nonDPtime+=layer.nonDPtime
+                GhostCliptime+=layer.GhostCliptime
+                Opacustime+=layer.Opacustime
+
+                BKspace+=layer.BKspace
+                nonDPspace+=layer.nonDPspace
+                GhostClipspace+=layer.GhostClipspace
+                Opacusspace+=layer.Opacusspace
+        print('\n Estimated time complexity in 10^12 (B=100): BK ',BKtime/1e12,
+              '; non-DP ', nonDPtime/1e12,'(',nonDPtime/BKtime,')',
+              '; GhostClip ', GhostCliptime/1e12,'(',GhostCliptime/BKtime,')',
+              '; Opacus ', Opacustime/1e12,'(',Opacustime/BKtime,')',)
+
+        print('\n Estimated space complexity in 10^9 (B=100)',BKspace/1e9,
+              '; non-DP ', nonDPspace/1e9,'(',nonDPspace/BKspace,')',
+              '; GhostClip ', GhostClipspace/1e9,'(',GhostClipspace/BKspace,')',
+              '; Opacus ', Opacusspace/1e9,'(',Opacusspace/BKspace,')',)
+        '''
+        
         unsupported_param_name=[]
         for name,param in list(self.named_params):#https://thispointer.com/python-remove-elements-from-a-list-while-iterating/#1
             if not hasattr(param, 'summed_clipped_grad'):
@@ -311,19 +410,14 @@ class PrivacyEngine(object):
 
             if self.record_snr:
                 signals.append(param.grad.reshape(-1).norm(2))
-
             if self.noise_multiplier > 0 and self.max_grad_norm > 0:
-                noise = torch.normal(
+                param.grad += torch.normal(
                     mean=0,
-                    std=self.noise_multiplier * self.max_grad_norm,
+                    std=param.noise,
                     size=param.size(),
                     device=param.device,
                     dtype=param.dtype,
                 )
-                param.grad += noise
-                if self.record_snr:
-                    noises.append(noise.reshape(-1).norm(2))
-                del noise
             if self.loss_reduction=='mean':
                 param.grad /= self.batch_size                
 

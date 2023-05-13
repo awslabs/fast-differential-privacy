@@ -29,9 +29,11 @@ from transformers.trainer_pt_utils import distributed_broadcast_scalars
 from transformers.trainer_utils import (EvalPrediction, EvaluationStrategy, IntervalStrategy, PREFIX_CHECKPOINT_DIR,
                                         PredictionOutput, TrainOutput, set_seed)
 from transformers.utils import logging
+from transformers.deepspeed import deepspeed_init
+import deepspeed
 
-from . import decoding_utils
-from .compiled_args import (DataTrainingArguments, ModelArguments, PrivacyArguments,
+import decoding_utils
+from compiled_args import (DataTrainingArguments, ModelArguments, PrivacyArguments,
                             TrainingArguments)
 
 logger = logging.get_logger(__name__)
@@ -111,7 +113,7 @@ class Trainer:
         ), "You must provide a model to use `Trainer`, either by using the `model` argument or the `model_init` " \
            "argument."
         assert model_init is None
-        self.model = model.to(args.device) if model is not None else None
+        self.model = model if model is not None else None
         self.num_params = sum(
             param.numel() for param in self.model.parameters() if param.requires_grad
         )
@@ -179,6 +181,9 @@ class Trainer:
                 else ["labels"]
             )
 
+        if self.args.deepspeed_config:
+            deepspeed.init_distributed()
+
     def _remove_unused_columns(self, dataset: "datasets.Dataset", description: Optional[str] = None):
         if not self.args.remove_unused_columns:
             return
@@ -237,8 +242,6 @@ class Trainer:
     def _get_eval_sampler(self, eval_dataset: Dataset) -> Optional[torch.utils.data.sampler.Sampler]:
         if isinstance(eval_dataset, torch.utils.data.IterableDataset):
             return None
-        elif self.args.local_rank != -1:
-            raise ValueError("Multi-gpu and distributed training is currently not supported.")
         else:
             return SequentialSampler(eval_dataset)
 
@@ -320,10 +323,6 @@ class Trainer:
                 Local path to the model if the model to train has been instantiated from a local path. If present,
                 training will resume from the optimizer/scheduler states loaded here.
         """
-        if self.args.local_rank != -1 or self.args.n_gpu > 1:
-            raise ValueError("Multi-gpu and distributed training is currently not supported.")
-        if self.args.fp16:
-            raise ValueError("Mixed-precision training is currently not supported.")
 
         # Model re-init
         if self.model_init is not None:
@@ -334,9 +333,20 @@ class Trainer:
 
             # Reinitializes optimizer and scheduler
             self.optimizer, self.lr_scheduler = None, None
+        else:
+            self.model.to(self.args.device)
 
         # Data loader and number of training steps
-        train_dataloader = self.get_train_dataloader()
+        if self.args.deepspeed_config:
+            self.model, self.optimizer, _, _ = deepspeed.initialize(args=self.args, model=self.model, optimizer=self.optimizer, model_parameters=self.model.parameters()) #training_data=self.train_dataset, collate_fn=self.data_collator)
+            fp16 = self.model.fp16_enabled()
+            bf16 = self.model.bfloat16_enabled()
+            print(f'[INFO] deepspeed = True, fp16 = {fp16}, bf16 = {bf16}')
+            train_dataloader = self.get_train_dataloader()
+        else:
+            print('[INFO] deepspeed = False, fp16 = F{fp16}, bf16 = {bf16}')
+            train_dataloader = self.get_train_dataloader()
+
         num_update_steps_per_epoch = len(train_dataloader) // self.args.gradient_accumulation_steps
         num_update_steps_per_epoch = max(num_update_steps_per_epoch, 1)
         if self.args.max_steps > 0:
@@ -376,14 +386,20 @@ class Trainer:
             * self.args.gradient_accumulation_steps
             * (torch.distributed.get_world_size() if self.args.local_rank != -1 else 1)
         )
-        logger.warning("***** Running training *****")
-        logger.warning("  Num examples = %d", self.num_examples(train_dataloader))
-        logger.warning("  Num Epochs = %d", num_train_epochs)
-        logger.warning("  Instantaneous batch size per device = %d", self.args.per_device_train_batch_size)
-        logger.warning("  Total train batch size (w. parallel, distributed & accumulation) = %d",
-                       total_train_batch_size)
-        logger.warning("  Gradient Accumulation steps = %d", self.args.gradient_accumulation_steps)
-        logger.warning("  Total optimization steps = %d", t_total)
+        def print_before_train():
+            logger.warning("***** Running training *****")
+            if self.args.deepspeed_config:
+                logger.warning("  torch.distributed.get_world_size() = %d", torch.distributed.get_world_size())
+            logger.warning("  Num examples = %d", self.num_examples(train_dataloader))
+            logger.warning("  Num Epochs = %d", num_train_epochs)
+            logger.warning("  Instantaneous batch size per device = %d", self.args.per_device_train_batch_size)
+            logger.warning("  Total train batch size (w. parallel, distributed & accumulation) = %d",
+                        total_train_batch_size)
+            logger.warning("  Gradient Accumulation steps = %d", self.args.gradient_accumulation_steps)
+            logger.warning("  Total optimization steps = %d", t_total)
+
+        print_before_train()
+            
 
         self.global_step = 0
         self.epoch = 0
@@ -403,11 +419,19 @@ class Trainer:
                 epochs_trained = self.global_step // num_update_steps_per_epoch
                 steps_trained_in_current_epoch = self.global_step % (num_update_steps_per_epoch)
 
-                logger.info("  Continuing training from checkpoint, will skip to saved global_step")
-                logger.info("  Continuing training from epoch %d", epochs_trained)
-                logger.info("  Continuing training from global step %d", self.global_step)
-                logger.info("  Continuing training from %d non-embedding floating-point operations", self.total_flos)
-                logger.info("  Will skip the first %d steps in the first epoch", steps_trained_in_current_epoch)
+                def print_checkpoint_info():
+                    logger.info("  Continuing training from checkpoint, will skip to saved global_step")
+                    logger.info("  Continuing training from epoch %d", epochs_trained)
+                    logger.info("  Continuing training from global step %d", self.global_step)
+                    logger.info("  Continuing training from %d non-embedding floating-point operations", self.total_flos)
+                    logger.info("  Will skip the first %d steps in the first epoch", steps_trained_in_current_epoch)
+
+                if self.args.deepspeed:
+                    if torch.distributed.get_rank() == 0:
+                        print_checkpoint_info()
+                else:
+                    print_checkpoint_info()
+                    
             except ValueError:
                 self.global_step = 0
                 self.total_flos = 0
@@ -430,7 +454,10 @@ class Trainer:
             # This extra step is crucial. The problem is that the total number of steps in one epoch might
             # not divide the number of accumulation steps, thus the accumulated .summed_grad (.grad) might overflow to
             # the next epoch, causing more gradient signal than there truly is.
-            model.zero_grad(set_to_none=True)
+            if self.args.deepspeed_config:
+                model.zero_grad()
+            else:
+                model.zero_grad(set_to_none=True)
 
             epoch_pbar = tqdm(epoch_iterator, desc="Iteration", disable=disable_tqdm)
             for step, inputs in enumerate(epoch_iterator):
@@ -440,10 +467,13 @@ class Trainer:
                     epoch_pbar.update(1)
                     continue
 
-                losses = self.training_step(model, inputs)
-                tr_loss += losses["scalar_loss"]
+                tr_loss += self.training_step(model, inputs)
                 self.total_flos += self.floating_point_ops(inputs)
 
+                if self.args.deepspeed_config:
+                    model.step()
+
+                # https://github.com/microsoft/DeepSpeed/issues/758
                 if (step + 1) % self.args.gradient_accumulation_steps == 0 or (
                     # last step in epoch but step is always smaller than gradient_accumulation_steps
                     self.args.gradient_accumulation_steps >= len(epoch_iterator) == (step + 1)
@@ -451,10 +481,14 @@ class Trainer:
                     if self.privacy_args.non_private:
                         # Don't double clip in private learning.
                         torch.nn.utils.clip_grad_norm_(model.parameters(), self.args.max_grad_norm)
-                    self.optimizer.step()
-
+                    # self.optimizer.step()
+                    if self.args.deepspeed_config:
+                        pass
+                    else:
+                        self.optimizer.step()
+                        model.zero_grad(set_to_none=True)
+                        
                     self.lr_scheduler.step()
-                    model.zero_grad(set_to_none=True)
 
                     self.global_step += 1
                     self.epoch = epoch + (step + 1) / len(epoch_iterator)
@@ -569,6 +603,10 @@ class Trainer:
         for k, v in inputs.items():
             if isinstance(v, torch.Tensor):
                 inputs[k] = v.to(self.args.device)
+                if self.args.fp16:
+                    inputs[k] = inputs[k].half()
+                if self.args.bf16:
+                    inputs[k] = inputs[k].bfloat16()
 
         # GPT-2 don't use these; these are mostly for encoder-decoder architectures.
         inputs.pop('src_attn', None)
@@ -579,35 +617,33 @@ class Trainer:
     def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> dict:
         model.train()
         inputs = self._prepare_inputs(inputs)
-        loss = self.compute_loss(model, inputs)  # (batch_size,).
-
-        vector_loss = loss
-        scalar_loss = loss.mean(dim=0) / self.args.gradient_accumulation_steps
-
-        if self.privacy_args.non_private:
-            scalar_loss.backward()
+        ### sum of loss dividing micro-batch size, not batch size
+        loss = self.compute_loss(model, inputs)  
+        
+        ### sum of loss dividing batch size
+        # scalar_loss = loss.mean(dim=0) / self.args.gradient_accumulation_steps 
+        
+        if self.args.deepspeed_config:
+            model.backward(loss)
         else:
-            vector_loss.backward()
+            loss.backward()
 
-        scalar_loss = scalar_loss.detach()
-        return dict(vector_loss=vector_loss, scalar_loss=scalar_loss)
+        return loss.detach()
 
     def compute_loss(self, model, inputs):
         labels = inputs.pop('labels')
         outputs = model(**inputs)
 
-        logits = outputs.logits
-        shift_logits = logits[..., :-1, :].contiguous()
-        shift_labels = labels[..., 1:].contiguous()
-        seq_lens = (shift_labels != -100).sum(dim=1)
-        loss = F.cross_entropy(shift_logits.permute(0, 2, 1), shift_labels, reduction="none")
-        loss = loss.sum(dim=1) / seq_lens  # Per token loss.
-
         # Save past state if it exists
         if self.args.past_index >= 0:
             self._past = outputs[self.args.past_index]
 
-        return loss.mean()  # (batch_size,)
+        logits = outputs.logits
+        shift_logits = logits[..., :-1, :].contiguous()
+        shift_labels = labels[..., 1:].contiguous()
+        seq_lens = (shift_labels != -100).sum(dim=1)
+        loss = F.cross_entropy(shift_logits.permute(0, 2, 1), shift_labels)
+        return loss  
 
     def is_local_master(self) -> bool:
         """

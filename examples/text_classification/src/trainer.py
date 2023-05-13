@@ -384,8 +384,7 @@ class Trainer(transformers.Trainer):
                     steps_trained_in_current_epoch -= 1
                     continue
 
-                losses = self.training_step(model, inputs)
-                tr_loss += losses["scalar_loss"]
+                tr_loss += self.training_step(model, inputs)#;print('>>>>>>>>>>>>>',losses)
 
                 if (step + 1) % self.args.gradient_accumulation_steps == 0 or (
                     # last step in epoch but step is always smaller than gradient_accumulation_steps
@@ -448,7 +447,7 @@ class Trainer(transformers.Trainer):
         logger.info("\n\nTraining completed. Do not forget to share your model on huggingface.co/models =)\n\n")
         return TrainOutput(self.global_step, tr_loss / self.global_step, metrics=metrics), self.objective
 
-    def compute_loss(self, model, inputs, return_outputs=False, return_vector_loss=False):
+    def compute_loss(self, model, inputs, return_outputs=False):
         """
         How the loss is computed by Trainer. By default, all models return the loss in the first element.
 
@@ -459,26 +458,20 @@ class Trainer(transformers.Trainer):
         logits = outputs[0]
         if isinstance(outputs, SequenceClassifierOutput):
             outputs = (logits,)
-        loss = F.cross_entropy(logits, labels, reduction="none")  # (batch_size,).
-        if not return_vector_loss:
-            loss = loss.mean(dim=0)
+        loss = F.cross_entropy(logits, labels)  # (batch_size,).
         return (loss, (loss,) + outputs) if return_outputs else loss
 
     def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> dict:
         model.train()
         inputs = self._prepare_inputs(inputs)
-        loss = self.compute_loss(model, inputs, return_vector_loss=True)  # (batch_size,).
+        loss = self.compute_loss(model, inputs)  # (batch_size,).
 
-        vector_loss = loss.mean(dim=0)
-        scalar_loss = loss.mean(dim=0) / self.args.gradient_accumulation_steps
-
-        if self.privacy_args.non_private:
-            scalar_loss.backward()
+        if hasattr(self.args,"deepspeed_config"):
+            model.backward(loss)
         else:
-            vector_loss.backward()
+            loss.backward()
 
-        scalar_loss = scalar_loss.detach()
-        return dict(vector_loss=vector_loss, scalar_loss=scalar_loss)
+        return loss.detach()
 
     """
     Difference compared to original implementation: return output instead of output.metrics (so there is also the 
