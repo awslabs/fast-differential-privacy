@@ -368,32 +368,6 @@ class PrivacyEngine(object):
     def _create_noisy_clipped_gradient(self):
         """Create noisy clipped gradient for `optimizer.step`."""
         
-        '''
-        BKtime=0;nonDPtime=0;GhostCliptime=0;Opacustime=0
-        BKspace=0;nonDPspace=0;GhostClipspace=0;Opacusspace=0
-
-        for name,layer in self.named_layers:
-            if hasattr(layer,'BKtime'):
-                BKtime+=layer.BKtime
-                nonDPtime+=layer.nonDPtime
-                GhostCliptime+=layer.GhostCliptime
-                Opacustime+=layer.Opacustime
-
-                BKspace+=layer.BKspace
-                nonDPspace+=layer.nonDPspace
-                GhostClipspace+=layer.GhostClipspace
-                Opacusspace+=layer.Opacusspace
-        print('\n Estimated time complexity in 10^12 (B=100): BK ',BKtime/1e12,
-              '; non-DP ', nonDPtime/1e12,'(',nonDPtime/BKtime,')',
-              '; GhostClip ', GhostCliptime/1e12,'(',GhostCliptime/BKtime,')',
-              '; Opacus ', Opacustime/1e12,'(',Opacustime/BKtime,')',)
-
-        print('\n Estimated space complexity in 10^9 (B=100)',BKspace/1e9,
-              '; non-DP ', nonDPspace/1e9,'(',nonDPspace/BKspace,')',
-              '; GhostClip ', GhostClipspace/1e9,'(',GhostClipspace/BKspace,')',
-              '; Opacus ', Opacusspace/1e9,'(',Opacusspace/BKspace,')',)
-        '''
-        
         unsupported_param_name=[]
         for name,param in list(self.named_params):#https://thispointer.com/python-remove-elements-from-a-list-while-iterating/#1
             if not hasattr(param, 'summed_clipped_grad'):
