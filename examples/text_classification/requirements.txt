@@ -14,7 +14,7 @@ fastavro==1.4.1
 filelock==3.0.12
 fire
 fusepy==2.0.4
-future==0.18.2
+future==0.18.3
 gdown>=3.13.0
 httplib2==0.17.4
 idna==3.2
