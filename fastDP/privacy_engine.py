@@ -249,14 +249,6 @@ class PrivacyEngine(object):
 
         transformers_support.forward_swapper(module=module)  # fix the position embeddings broadcast issue.
 
-        autograd_grad_sample.add_hooks(model=self.module, loss_reduction=self.loss_reduction, 
-                                       clipping_mode=self.clipping_mode, bias_only=self.bias_only,
-                                       clipping_style=self.clipping_style, block_heads=self.block_heads,
-                                       named_params=self.named_params, named_layers=self.named_layers,
-                                       clipping_fn=self.clipping_fn, 
-                                       numerical_stability_constant=self.numerical_stability_constant,
-                                       max_grad_norm_layerwise=self.max_grad_norm_layerwise)
-
 
         def get_privacy_spent(_self, **kwargs):
             return _self.privacy_engine.get_privacy_spent(**kwargs)
@@ -280,6 +272,14 @@ class PrivacyEngine(object):
         self._locked = False
 
     def attach(self, optimizer):
+
+        autograd_grad_sample.add_hooks(model=self.module, loss_reduction=self.loss_reduction, 
+                                       clipping_mode=self.clipping_mode, bias_only=self.bias_only,
+                                       clipping_style=self.clipping_style, block_heads=self.block_heads,
+                                       named_params=self.named_params, named_layers=self.named_layers,
+                                       clipping_fn=self.clipping_fn, 
+                                       numerical_stability_constant=self.numerical_stability_constant,
+                                       max_grad_norm_layerwise=self.max_grad_norm_layerwise)
 
         # Override step.
         def dp_step(_self, **kwargs):
