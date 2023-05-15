@@ -376,15 +376,3 @@ def _create_or_extend_summed_clipped_grad(param: torch.Tensor, summed_clipped_gr
         param.summed_clipped_grad += summed_clipped_grad.detach()
     else:
         param.summed_clipped_grad = summed_clipped_grad.detach();#print(torch.normal(0,1,size=(1,1)))
-
-#%  we need param.private_grad stores either noise+first micro-batch summed_clipped_grad or only summed_clipped_grad
-def _create_or_extend_private_grad(param: torch.Tensor, summed_clipped_grad: torch.Tensor) -> None:
-    """Adds summed clipped gradient (not per-sample) to param.summed_clipped_grad or accumulate the existing tensor."""
-
-    assert summed_clipped_grad.shape == param.shape, f"summed clipped grad.size()={summed_clipped_grad.size()}, param.size()={param.size()}"
-    if hasattr(param, "private_grad"):
-        #print('not first step')
-        param.private_grad = summed_clipped_grad.detach()
-    else:
-        #print('first step')
-        param.private_grad = summed_clipped_grad.detach()+torch.normal(mean=0, std=param.noise,size=param.size(), device=param.device, dtype=param.dtype)#;print(torch.normal(0,1,size=(1,1)))
