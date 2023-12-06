@@ -307,6 +307,7 @@ class PrivacyEngine(object):
         optimizer.get_privacy_spent = types.MethodType(get_privacy_spent, optimizer)
         optimizer.get_training_stats = types.MethodType(get_training_stats, optimizer)
 
+        self.optimizer = optimizer
 
     def detach(self):
         optimizer = self.optimizer
