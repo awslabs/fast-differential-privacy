@@ -95,7 +95,7 @@ def _prepare_sample_grad_or_norm(
         backprops = backprops * backprops.shape[0] # .backprops should save dL_i/ds, not 1/B*dL_i/ds, the mean reduction is taken care of in privacy engine .step()
     compute_layer_grad_sample, _ = _supported_layers_norm_sample_AND_clipping.get(type(layer))
 
-    compute_layer_grad_sample(layer, layer.activations, backprops, clipping_mode)
+    compute_layer_grad_sample(layer, layer.activations.float(), backprops.float(), clipping_mode)
 
     layer.backprops=backprops
 
@@ -122,7 +122,7 @@ def _per_block_clip_grad(
             if hasattr(layer,'weight') and hasattr(layer.weight,'initially_requires_grad') and layer.weight.initially_requires_grad and hasattr(layer,'activations') and hasattr(layer.weight,'norm_sample'):
                 #--- weight, compute clipped gradient
                 _, compute_layer_grad = _supported_layers_norm_sample_AND_clipping.get(type(layer))
-                grad_weight = compute_layer_grad(layer, layer.activations, torch.einsum('b...,b->b...',layer.backprops,C), C)
+                grad_weight = compute_layer_grad(layer, layer.activations.float(), torch.einsum('b...,b->b...',layer.backprops,C).float(), C)
                 del layer.activations, layer.backprops
                 _create_or_extend_summed_clipped_grad(layer.weight, grad_weight)
                 
@@ -149,7 +149,7 @@ def _per_block_clip_grad(
         if hasattr(layer,'weight') and hasattr(layer.weight,'initially_requires_grad') and layer.weight.initially_requires_grad and hasattr(layer,'activations') and hasattr(layer.weight,'norm_sample'):
             #--- weight, compute clipped gradient
             _, compute_layer_grad = _supported_layers_norm_sample_AND_clipping.get(type(layer))
-            grad_weight = compute_layer_grad(layer, layer.activations, torch.einsum('b...,b->b...',layer.backprops,C), C)
+            grad_weight = compute_layer_grad(layer, layer.activations.float(), torch.einsum('b...,b->b...',layer.backprops,C).float(), C)
             del layer.activations, layer.backprops
             if hasattr(layer.weight,'grad_sample'):
                 print(type(layer))
@@ -185,7 +185,7 @@ def _per_block_clip_grad(
             
         if hasattr(layer,'weight') and hasattr(layer.weight,'initially_requires_grad') and layer.weight.initially_requires_grad and hasattr(layer,'activations') and hasattr(layer.weight,'norm_sample'):
             _, compute_layer_grad = _supported_layers_norm_sample_AND_clipping.get(type(layer))
-            grad_weight = compute_layer_grad(layer, layer.activations, torch.einsum('b...,b->b...',layer.backprops,C_weight), C_weight)
+            grad_weight = compute_layer_grad(layer, layer.activations.float(), torch.einsum('b...,b->b...',layer.backprops.float(),C_weight), C_weight)
             del layer.activations, layer.backprops
             
             _create_or_extend_summed_clipped_grad(layer.weight, grad_weight)
