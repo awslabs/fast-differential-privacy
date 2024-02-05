@@ -71,6 +71,7 @@ def main(args):
             noise_multiplier=sigma,
             epochs=args.epochs,
             clipping_mode=clipping_mode,
+            clipping_style=args.clipping_style,
             origin_params=args.origin_params,#['patch_embed.proj.bias'],
         )
         privacy_engine.attach(optimizer)        
@@ -137,6 +138,7 @@ if __name__ == '__main__':
     parser.add_argument('--mini_bs', type=int, default=50)
     parser.add_argument('--epsilon', default=2, type=float, help='target epsilon')
     parser.add_argument('--clipping_mode', default='BK-MixOpt', type=str)
+    parser.add_argument('--clipping_style', default='all-layer', nargs='+',type=str)
     parser.add_argument('--model', default='vit_small_patch16_224', type=str)
     parser.add_argument('--cifar_data', type=str, default='CIFAR10')
     parser.add_argument('--dimension', type=int,default=224)
