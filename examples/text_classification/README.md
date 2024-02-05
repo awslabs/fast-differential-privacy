@@ -1,4 +1,4 @@
-## Reproducing results for text classification
+## DP text classification with RoBERTa
 
 ### Requirements
 
@@ -30,7 +30,7 @@ Necessary arguments:
 For instance, run the following under the `examples` folder:
 
 ```plaintext
-python -m text_classification.run_wrapper --output_dir <output_dir> --task_name <task_name>
+python -m text_classification.run_wrapper --output_dir ToDelete --task_name sst-2
 ```
 
 The script by default uses book-keeping (BK) by [[Differentially Private Optimization on Large Model at Small Cost]](https://arxiv.org/pdf/2210.00038.pdf) for the DP full fine-tuning. Gradient accumulation is used so that larger physical batch size allows faster training at heavier memory burden, but the accuracy is not affected. For SST-2/QNLI/QQP/MNLI, running `roberta-base` on one A100 GPU (40GB) takes around 5/8/37/32 min per epoch.
@@ -49,7 +49,7 @@ Additional arguments:
 
 *   `--clipping_fn`: Which per-sample gradient clipping function use; one of `automatic` (default, [Bu et al., 2022](https://arxiv.org/pdf/2206.07136.pdf)), `Abadi` [(Abadi et al., 2016)](https://arxiv.org/pdf/1607.00133.pdf) , `global` [(Bu et al., 2021)](https://arxiv.org/pdf/2106.07830.pdf).
 
-* `--clipping_style`: Which per-sample gradient clipping style to use; one of `all-layer` (flat clipping), `layer-wise` (each layer is a block, including both weight and bias parameters), `param-wise` (each parameter is a block), or a list of layer names (general block-wise clipping).
+* `--clipping_style`: Which per-sample gradient clipping style to use; one of `all-layer` (flat clipping), `layer-wise` (each layer is a group, including both weight and bias parameters), `param-wise` (each parameter is a group), or a list of layer names (general group-wise clipping). For example, 2-group clipping style can use `--clipping_style 2`; 12-group clipping style can use `--clipping_style 12`.
 
 *   `--attention_only`: Whether to only train attention layers; one of `yes`, `no` (default).
 
