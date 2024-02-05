@@ -1,4 +1,4 @@
-## Image classification with convolutional neural networks and vision transformers
+## DP image classification with convolutional neural networks and vision transformers
 
 We provide the scripts to implement DP optimization on CIFAR10, CIFAR100, SVHN, ImageNet, CelebA, Places365, INaturalist, and other datasets, using the models (CNN and ViT) from [TIMM](https://github.com/rwightman/pytorch-image-models/tree/master/timm/models). Supported models include VGG, ResNet, Wide ResNet, ViT, CrossViT, BEiT, DEiT, ... 
 
