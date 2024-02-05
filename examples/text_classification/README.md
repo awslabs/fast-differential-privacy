@@ -1,4 +1,4 @@
-## DP text classification with RoBERTa
+## DP text classification with Huggingface transformers
 
 ### Requirements
 
