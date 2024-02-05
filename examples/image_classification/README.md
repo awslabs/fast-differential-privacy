@@ -43,7 +43,7 @@ python -m CelebA_TIMM --model resnet18
 ```
 Same arguments `[lr, epochs, bs, mini_bs, epsilon, clipping mode, model]` as the CIFAR example with one addition `--labels`. Default is `None` to train all 40 labels as multi-label/multi-task problem, otherwise train on label indices specified as a list. For example, label index 31 is 'Smiling' and label index 20 is 'Male'.
 
-### General CV experiments
+### General computer vision experiments
 We provide a general script to experiment on many torchvision datasets, and we fix most of the arguments in the privacy engine.
 ```plaintext
 python -m CV_TIMM --model vit_base_patch16_224 --dataset_name ImageNet
