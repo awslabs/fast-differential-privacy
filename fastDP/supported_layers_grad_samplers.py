@@ -98,20 +98,6 @@ def _light_linear_bias_norm_sample(B):
     else:
         raise ValueError(f"Unexpected grad_output shape: {B.size()}")
 
-
-def _create_or_extend_norm_sample(param: torch.Tensor, norm_sample: torch.Tensor) -> None:
-    """Creates a ``norm_sample`` attribute in the given parameter."""
-    param.norm_sample = norm_sample
-
-
-def _create_or_extend_grad_sample(param: torch.Tensor, grad_sample: torch.Tensor) -> None:
-    """Creates a ``grad_sample`` attribute in the given parameter or accumulate the existing tensor."""
-    assert grad_sample.shape[1:] == param.shape, f"grad_sample.size()={grad_sample.size()}, param.size()={param.size()}"
-    if hasattr(param, "grad_sample"):
-        param.grad_sample += grad_sample.detach()
-    else:
-        param.grad_sample = grad_sample.detach()
-
 def _compute_linear_grad_sample(layer: nn.Linear, A: torch.Tensor, B: torch.Tensor, clipping_mode: str) -> None:
     """Computes per sample gradients for `nn.Linear` layer.
     A is activations or layer's input, see autograd_grad_sample line 229; B is output gradient
@@ -130,22 +116,58 @@ def _compute_linear_grad_sample(layer: nn.Linear, A: torch.Tensor, B: torch.Tens
             
         if layer.use_gc==True:
             #--- compute weight gradient norm
-            _create_or_extend_norm_sample(layer.weight, _light_linear_weight_norm_sample(A, B))
+            layer.weight.norm_sample = _light_linear_weight_norm_sample(A, B)
         else:
             ## Or use Line 105 (v0.1.0) https://github.com/lxuechen/private-transformers/blob/main/private_transformers/privacy_utils/supported_layers_grad_samplers.py
-            layer.weight.grad_sample = torch.einsum('b...d, b...p-> bpd', A, B)
-            _create_or_extend_norm_sample(layer.weight, torch.sqrt(torch.sum(layer.weight.grad_sample**2, dim=(1, 2))))
+            layer.weight.grad_sample = torch.einsum('b...d, b...p-> bpd', A, B).detach()
+            layer.weight.norm_sample = torch.sqrt(torch.sum(layer.weight.grad_sample**2, dim=(1, 2)))
             if clipping_mode!='MixOpt':
                 del layer.weight.grad_sample
     
     #--- compute bias gradient norm
     if layer.bias is not None:
-        _create_or_extend_norm_sample(layer.bias, _light_linear_bias_norm_sample(B))
+        layer.bias.norm_sample = _light_linear_bias_norm_sample(B)
         if B.dim() == 3:
             grad_bias = B.sum(dim=1)
         elif B.dim() == 2:
             grad_bias = B
-        _create_or_extend_grad_sample(layer.bias, grad_bias)        
+        layer.bias.grad_sample = grad_bias.detach()     
+
+
+def _compute_Conv1D_grad_sample(layer: nn.Linear, A: torch.Tensor, B: torch.Tensor, clipping_mode: str) -> None:
+    """Computes per sample gradients for `nn.Linear` layer.
+    A is activations or layer's input, see autograd_grad_sample line 229; B is output gradient
+    This function is written in an unusually bespoke way to avoid using `torch.einsum`.
+    """
+    if A!=None:
+        if clipping_mode in ['MixGhostClip','MixOpt']:
+            mixed_ghost_norm(layer, A, B)
+        else:
+            layer.use_gc=True
+        
+        
+        if A.dim()>3:
+            A=torch.flatten(A,start_dim=1,end_dim=-2)
+            B=torch.flatten(B,start_dim=1,end_dim=-2)
+            
+        if layer.use_gc==True:
+            #--- compute weight gradient norm
+            layer.weight.norm_sample = _light_linear_weight_norm_sample(A, B)
+        else:
+            ## Or use Line 105 (v0.1.0) https://github.com/lxuechen/private-transformers/blob/main/private_transformers/privacy_utils/supported_layers_grad_samplers.py
+            layer.weight.grad_sample = torch.einsum('b...d, b...p-> bdp', A, B).detach()
+            layer.weight.norm_sample = torch.sqrt(torch.sum(layer.weight.grad_sample**2, dim=(1, 2)))
+            if clipping_mode!='MixOpt':
+                del layer.weight.grad_sample
+    
+    #--- compute bias gradient norm
+    if layer.bias is not None:
+        layer.bias.norm_sample = _light_linear_bias_norm_sample(B)
+        if B.dim() == 3:
+            grad_bias = B.sum(dim=1)
+        elif B.dim() == 2:
+            grad_bias = B
+        layer.bias.grad_sample = grad_bias.detach()   
         
 def _compute_layer_norm_grad_sample(
     layer: nn.LayerNorm,
@@ -159,14 +181,14 @@ def _compute_layer_norm_grad_sample(
             layer.weight.dim(),
         )
         norm_sample = grad_sample.flatten(start_dim=1).norm(2, dim=1)
-        _create_or_extend_norm_sample(layer.weight, norm_sample)
-        _create_or_extend_grad_sample(layer.weight, grad_sample)
+        layer.weight.norm_sample = norm_sample
+        layer.weight.grad_sample = grad_sample.detach()
     
     #--- bias, compute gradient norm
     if layer.bias is not None:
         grad_sample = sum_over_all_but_batch_and_last_n(B, layer.bias.dim())        
-        _create_or_extend_norm_sample(layer.bias, grad_sample.flatten(start_dim=1).norm(2, dim=1))
-        _create_or_extend_grad_sample(layer.bias, grad_sample)
+        layer.bias.norm_sample = grad_sample.flatten(start_dim=1).norm(2, dim=1)
+        layer.bias.grad_sample = grad_sample.detach()
 
       
 def _compute_group_norm_grad_sample(
@@ -179,13 +201,13 @@ def _compute_group_norm_grad_sample(
     if A!=None:
         grad_sample = torch.einsum('ni...->ni',F.group_norm(A, layer.num_groups, eps=layer.eps) * B)
     
-        _create_or_extend_norm_sample(layer.weight, grad_sample.norm(2, dim=1))
-        _create_or_extend_grad_sample(layer.weight, grad_sample)
+        layer.weight.norm_sample = grad_sample.norm(2, dim=1)
+        layer.weight.grad_sample = grad_sample.detach()
 
     if layer.bias is not None:
         grad_sample = torch.einsum('ni...->ni', B)
-        _create_or_extend_norm_sample(layer.bias, grad_sample.norm(2, dim=1))
-        _create_or_extend_grad_sample(layer.bias, grad_sample)
+        layer.bias.norm_sample = grad_sample.norm(2, dim=1)
+        layer.bias.grad_sample = grad_sample.detach()
 
 def _compute_instance_norm_grad_sample(
     layer: nn.InstanceNorm2d,
@@ -197,13 +219,13 @@ def _compute_instance_norm_grad_sample(
     if A!=None:
         grad_sample = torch.einsum('ni...->ni',F.instance_norm(A, eps=layer.eps) * B)
     
-        _create_or_extend_norm_sample(layer.weight, grad_sample.norm(2, dim=1))
-        _create_or_extend_grad_sample(layer.weight, grad_sample)
+        layer.weight.norm_sample = grad_sample.norm(2, dim=1)
+        layer.weight.grad_sample = grad_sample.detach()
 
     if layer.bias is not None:
         grad_sample = torch.einsum('ni...->ni', B)
-        _create_or_extend_norm_sample(layer.bias, grad_sample.norm(2, dim=1))
-        _create_or_extend_grad_sample(layer.bias, grad_sample)
+        layer.bias.norm_sample = grad_sample.norm(2, dim=1)
+        layer.bias.grad_sample = grad_sample.detach()
 
 def _compute_embedding_grad_sample(layer: nn.Embedding, A: torch.Tensor, B: torch.Tensor, clipping_mode: str) -> None:
     """Computes per sample gradients for `nn.Embedding` layer."""
@@ -220,7 +242,7 @@ def _compute_embedding_grad_sample(layer: nn.Embedding, A: torch.Tensor, B: torc
         #   So the entry gets cleared whenever one of A, A^t takes the padding idx.
         not_AAt.bitwise_or_((A[:, :, None] == padding_idx) | (A[:, None, :] == padding_idx))
     norm_sample = torch.sqrt((torch.bmm(B, B.transpose(-1, -2)).masked_fill(not_AAt, 0)).sum(dim=(1, 2)))
-    _create_or_extend_norm_sample(layer.weight, norm_sample)
+    layer.weight.norm_sample = norm_sample
 
 
 def _compute_conv_grad_sample(layer, A: torch.Tensor, B: torch.Tensor, clipping_mode: str):
@@ -255,21 +277,20 @@ def _compute_conv_grad_sample(layer, A: torch.Tensor, B: torch.Tensor, clipping_
             aTa = torch.einsum('bji, bjk -> bik', A, A)
             gTg = torch.einsum('bji, bjk -> bik', B, B)
             #norm_sample = torch.sqrt(torch.einsum('bij, bij -> b', aTa, gTg))
-            norm_sample = torch.sqrt((aTa*gTg).sum(dim=(1,2)))
-    
-            _create_or_extend_norm_sample(layer.weight, norm_sample)
+            norm_sample = torch.sqrt((aTa*gTg).sum(dim=(1,2)))    
+            layer.weight.norm_sample = norm_sample
         else:
             ## Or use Line 105 https://github.com/lxuechen/private-transformers/blob/main/private_transformers/privacy_utils/supported_layers_grad_samplers.py
-            layer.weight.grad_sample = torch.einsum('bd..., bp...-> bpd', A, B)
-            _create_or_extend_norm_sample(layer.weight, torch.sqrt((layer.weight.grad_sample**2).sum(dim=(1, 2))))
+            layer.weight.grad_sample = torch.einsum('bd..., bp...-> bpd', A, B).detach()
+            layer.weight.norm_sample = torch.sqrt((layer.weight.grad_sample**2).sum(dim=(1, 2)))
             if clipping_mode !='MixOpt':
                 del layer.weight.grad_sample
 
     #--- bias, compute gradient norm
     if layer.bias is not None:
-        bias_grad_sample = B.sum(dim=2)
-        _create_or_extend_norm_sample(layer.bias, bias_grad_sample.norm(2, dim=1))
-        _create_or_extend_grad_sample(layer.bias, bias_grad_sample)
+        grad_sample = B.sum(dim=2).detach()
+        layer.bias.norm_sample = grad_sample.norm(2, dim=1)
+        layer.bias.grad_sample = grad_sample
 
 def _compute_t5_layer_norm_grad_sample(layer: T5LayerNorm, A: torch.Tensor, B: torch.Tensor, clipping_mode: str):
     # `transformers.models.t5.modeling_t5.T5LayerNorm` has single input and output. Unpack singleton tuples.
@@ -280,9 +301,7 @@ def _compute_t5_layer_norm_grad_sample(layer: T5LayerNorm, A: torch.Tensor, B: t
     )
 
     grad_sample = (A * torch.rsqrt(A.pow(2).mean(-1, keepdim=True) + layer.variance_epsilon) * B).sum(dim=1)
-    norm_sample = grad_sample.norm(2, dim=1)
-    _create_or_extend_norm_sample(layer.weight, norm_sample)
-
+    layer.weight.norm_sample = grad_sample.norm(2, dim=1)
 
 #% compute clipped weight gradient    
 def _clip_linear_grad(layer: nn.Linear, A: torch.Tensor, B: torch.Tensor, C) -> None:
@@ -361,14 +380,13 @@ _supported_layers_norm_sample_AND_clipping = {
     nn.InstanceNorm1d: (_compute_instance_norm_grad_sample, _clip_normalization_grad),
     nn.InstanceNorm2d: (_compute_instance_norm_grad_sample, _clip_normalization_grad),
     nn.InstanceNorm3d: (_compute_instance_norm_grad_sample, _clip_normalization_grad),
-    transformers.pytorch_utils.Conv1D: (_compute_linear_grad_sample, _clip_Conv1D_grad),# Conv1D's weight is transposed to nn.Linear's, but this does not matter for the norm
+    transformers.pytorch_utils.Conv1D: (_compute_Conv1D_grad_sample, _clip_Conv1D_grad),# Conv1D's weight is transposed to nn.Linear's, but this does not matter for the norm
     transformers.models.t5.modeling_t5.T5LayerNorm: (_compute_t5_layer_norm_grad_sample, _clip_t5_layer_norm_grad),
 }
 
 #%  we need param.summed_clipped_grad to avoid contamination from non-private .grad
 def _create_or_extend_summed_clipped_grad(param: torch.Tensor, summed_clipped_grad: torch.Tensor) -> None:
     """Adds summed clipped gradient (not per-sample) to param.summed_clipped_grad or accumulate the existing tensor."""
-
     
     assert summed_clipped_grad.shape == param.shape, f"summed clipped grad.size()={summed_clipped_grad.size()}, param.size()={param.size()}"
 
@@ -376,3 +394,14 @@ def _create_or_extend_summed_clipped_grad(param: torch.Tensor, summed_clipped_gr
         param.summed_clipped_grad += summed_clipped_grad.detach()
     else:
         param.summed_clipped_grad = summed_clipped_grad.detach();#print(torch.normal(0,1,size=(1,1)))
+        #print(param.summed_clipped_grad.dtype)
+
+#%  we need param.private_grad stores either noise+first micro-batch summed_clipped_grad or only summed_clipped_grad
+def _create_or_extend_private_grad(param: torch.Tensor, summed_clipped_grad: torch.Tensor) -> None:
+    """Adds summed clipped gradient (not per-sample) to param.summed_clipped_grad or accumulate the existing tensor."""
+
+    assert summed_clipped_grad.shape == param.shape, f"summed clipped grad.size()={summed_clipped_grad.size()}, param.size()={param.size()}"
+    if hasattr(param, "private_grad"):
+        param.private_grad = summed_clipped_grad.detach()
+    else:
+        param.private_grad = summed_clipped_grad.detach()+torch.normal(mean=0, std=param.noise,size=param.size(), device=param.device, dtype=param.dtype)
