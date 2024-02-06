@@ -38,12 +38,6 @@ def main(args):
     print('==> Building and fixing model..', args.model,'. Mode: ', args.clipping_mode)
     net = timm.create_model(args.model,pretrained=True,num_classes=int(args.cifar_data[5:]))    
     net = ModuleValidator.fix(net); 
-
-    #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    #net.to(device)
-
-    print('Number of total parameters: ', sum([p.numel() for p in net.parameters()]))
-    print('Number of trainable parameters: ', sum([p.numel() for p in net.parameters() if p.requires_grad]))
     
     criterion = nn.CrossEntropyLoss()
 
@@ -52,6 +46,9 @@ def main(args):
             if '.bias' not in name:
                 param.requires_grad_(False)
 
+    print('Number of total parameters: ', sum([p.numel() for p in net.parameters()]))
+    print('Number of trainable parameters: ', sum([p.numel() for p in net.parameters() if p.requires_grad]))
+
     # Privacy engine
     if 'nonDP' not in args.clipping_mode:
         privacy_engine = PrivacyEngine(
@@ -59,7 +56,6 @@ def main(args):
             batch_size=config['train_batch_size'],
             sample_size=len(trainset),
             epochs=args.epochs,
-            #noise_multiplier=0,
             target_epsilon=args.epsilon,
             clipping_mode='MixOpt',
             clipping_style=args.clipping_style,
