@@ -41,17 +41,16 @@ def main(args):
     print('==> Building and fixing model..', args.model,'. Mode: ', args.clipping_mode)
     net = timm.create_model(args.model,pretrained=True,num_classes=int(args.cifar_data[5:]))    
     net = ModuleValidator.fix(net); 
-
-    print('Number of total parameters: ', sum([p.numel() for p in net.parameters()]))
-    print('Number of trainable parameters: ', sum([p.numel() for p in net.parameters() if p.requires_grad]))
     
     criterion = nn.CrossEntropyLoss()
 
-
-    if 'BiTFiT' in args.clipping_mode: # not needed for DP-BiTFiT but use here for safety
+    if 'BiTFiT' in args.clipping_mode:
         for name,param in net.named_parameters():
             if '.bias' not in name:
                 param.requires_grad_(False)
+
+    print('Number of total parameters: ', sum([p.numel() for p in net.parameters()]))
+    print('Number of trainable parameters: ', sum([p.numel() for p in net.parameters() if p.requires_grad]))
 
     # Privacy engine
     if 'nonDP' not in args.clipping_mode:
