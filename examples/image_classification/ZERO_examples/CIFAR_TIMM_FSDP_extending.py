@@ -134,7 +134,6 @@ def main(rank, world_size, args):
     # Model
     print('==> Building and fixing model..', args.model,'. Mode: ', args.clipping_mode,grad_acc_steps)
     net = timm.create_model(args.model, pretrained=True, num_classes=int(args.cifar_data[5:]))    
-    net = ModuleValidator.fix(net); 
   
     if 'BiTFiT' in args.clipping_mode:
       for name,param in net.named_parameters():
