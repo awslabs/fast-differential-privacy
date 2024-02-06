@@ -30,8 +30,6 @@ def main(args):
         # cifar data is downloaded, indicate other ranks can proceed
         torch.distributed.barrier()
 
-    #trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.mini_bs, shuffle=True)
-
     testloader = torch.utils.data.DataLoader(testset, batch_size=20, shuffle=False, num_workers=2) #must have num_workers!=0!!!!!! https://github.com/microsoft/DeepSpeed/issues/1735#issuecomment-1025073746
 
     # Model
@@ -41,7 +39,7 @@ def main(args):
     
     criterion = nn.CrossEntropyLoss()
 
-    if 'BiTFiT' in args.clipping_mode: # not needed for DP-BiTFiT but use here for safety
+    if 'BiTFiT' in args.clipping_mode:
         for name,param in net.named_parameters():
             if '.bias' not in name:
                 param.requires_grad_(False)
