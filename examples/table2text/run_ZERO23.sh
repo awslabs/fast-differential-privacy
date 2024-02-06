@@ -40,7 +40,7 @@ fi
 gradient_accumulation_steps=$((${batch_size} / ${physical_batch_size} / ${num_GPUs}))
 
 # Arguments in the last two lines are the most important.
-deepspeed table2text/run_language_modeling_stage23.py --deepspeed_config ${deepspeed_config} \
+deepspeed table2text/run_language_modeling_ZERO23.py --deepspeed_config ${deepspeed_config} \
   --output_dir ${output_dir} --overwrite_output_dir \
   --task_mode ${task_mode} \
   --model_name_or_path ${model_name_or_path} \
