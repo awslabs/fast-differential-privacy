@@ -1,6 +1,6 @@
 # Fast Differential Privacy
 
-*Fast Differential Privacy* is a library that allows differentially private optimization of PyTorch models, with a few additional lines of code. It supports all PyTorch optimizers, popular models in [TIMM](https://github.com/rwightman/pytorch-image-models), [torchvision](https://github.com/pytorch/vision), [HuggingFace](https://huggingface.co/transformers/) (up to supported modules), multiple privacy accountants, and multiple clipping functions. The library has provably little overhead in terms of training time and memory cost, compared with the standard non-private optimization.
+*Fast Differential Privacy* (**fastDP**) is a library that allows differentially private optimization of PyTorch models, with a few additional lines of code. The goal of this library is to make DP deep learning as similar to the standard non-private learning as possible, in terms of *speed, memory cost, scalability, accuracy and hyperparameter-tuning*. It supports all PyTorch optimizers, popular models in [TIMM](https://github.com/rwightman/pytorch-image-models), [torchvision](https://github.com/pytorch/vision), [HuggingFace](https://huggingface.co/transformers/) (up to supported modules), multiple privacy accountants, and multiple clipping functions. The library has provably little overhead in terms of training time and memory cost, compared with the standard non-private optimization.
 
 
 ---
@@ -13,7 +13,7 @@ python -m setup develop --user
 > :warning: **NOTE**: We strongly recommend Python>=3.8 and torch<=1.11 (it is a known issue that torch 1.12 can slow down as much as 3 times).
 
 ## Getting started
-To train a model with differential privacy, simply create a `PrivacyEngine`, attach it to any optimizer (e.g. SGD, Adam), and continue the standard training pipeline:
+To train a model with differential privacy, simply create a `PrivacyEngine` and continue the standard training pipeline:
 
 ```python
 from fastDP import PrivacyEngine
@@ -29,7 +29,8 @@ privacy_engine = PrivacyEngine(
     origin_params=None,
     clipping_style='all-layer',
 )
-privacy_engine.attach(optimizer)
+# attaching to optimizers is not needed for multi-GPU distributed learning
+privacy_engine.attach(optimizer) 
 
 #----- standard training pipeline
 loss = F.cross_entropy(model(batch), labels)
@@ -51,19 +52,28 @@ for i, batch in enumerate(dataloader):
 ```
 
 ## Highlights
-1. This library enables DP training to have almost **the same time and space complexity** as the standard non-private training. This is achieved by three key techniques as described in [4]: mixed ghost norm, book-keeping, and ghost differentiation. In practice, we observe <20% memory overhead and <25% slowdown across different tasks.
+1. This library enables large model training in the **multi-GPU distributed setting** and **supports mixed precision training** under DeepSpeed and FSDP.
+<p align="center">
+  <img width="900" height="400" src="./assets/scalability.png">
+</p>
+The scalability has been tested on 100B models with 512 GPUs.
+<p align="center">
+  <img width="900" height="300" src="./assets/efficiency.png">
+</p>
+
+2. This library enables DP training to have almost **the same time and space complexity** as the standard non-private training. This is achieved by three key techniques as described in [4]: mixed ghost norm, book-keeping, and ghost differentiation. In practice, we observe <20% memory overhead and <25% slowdown across different tasks.
 
 <p align="center">
   <img width="900" height="400" src="./assets/nlp.png">
 </p>
 
-2. Specifically, the mixed ghost norm trick [3,8] overcomes the severe memory issues of large model (commonly encountered by Opacus, which computes the per-sample gradients) and high dimensional data (commonly encountered by ghost clipping, e.g. in Private transformers).
+3. Specifically, this library overcomes the severe memory issues of large model (commonly encountered by Opacus, which computes the per-sample gradients) and high dimensional data (commonly encountered by ghost clipping, e.g. in Private transformers), by leveraging the mixed ghost norm trick [3,8].
 
 <p align="center">
   <img width="900" height="220" src="./assets/vision.png">
 </p>
 
-3. We support all [`torch.optim`](https://pytorch.org/docs/stable/optim.html) (SGD, Adam, AdaGrad,...) and a wide range of models (BERT, RoBERTa, GPT, ViT, BEiT, CrossViT, DEiT, ResNet, VGG, DenseNet,...), including their parameter-efficient variants. For example, one can run DP bias-term fine-tuning (DP-BiTFiT) by simply freezing non-bias terms, as in `examples/image_classification`.
+4. We **support all optimizers** in [`torch.optim`](https://pytorch.org/docs/stable/optim.html) (SGD, Adam, AdaGrad,...) and a wide range of **models** (BERT, RoBERTa, GPT, ViT, BEiT, CrossViT, DEiT, ResNet, VGG, DenseNet,...), including their parameter-efficient variants. For example, one can run DP bias-term fine-tuning (DP-BiTFiT) by simply freezing non-bias terms, as in `examples/image_classification`.
 
 ------
 Full fine-tuning results on a single A100 GPU
@@ -89,17 +99,27 @@ The `examples` folder covers tasks on the table-to-text (E2E and DART datasets w
 ## Citation
 Please consider citing the following if you want to use this library in your works:
 ```
-@article{bu2022differentially,
-  title={Differentially Private Optimization on Large Model at Small Cost},
+@inproceedings{bu2023differentially,
+  title={Differentially private optimization on large model at small cost},
   author={Bu, Zhiqi and Wang, Yu-Xiang and Zha, Sheng and Karypis, George},
-  journal={arXiv preprint arXiv:2210.00038},
-  year={2022}
+  booktitle={International Conference on Machine Learning},
+  pages={3192--3218},
+  year={2023},
+  organization={PMLR}
 }
 
-@article{bu2022differentially,
-  title={Differentially Private Bias-Term only Fine-tuning of Foundation Models},
+@article{bu2023zero,
+  title={Zero redundancy distributed learning with differential privacy},
+  author={Bu, Zhiqi and Chiu, Justin and Liu, Ruixuan and Zha, Sheng and Karypis, George},
+  booktitle={ICLR 2023 Workshop on Pitfalls of limited data and computation for Trustworthy ML},
+  journal={arXiv preprint arXiv:2311.11822},
+  year={2023}
+}
+
+@inproceedings{bu2022differentially,
+  title={Differentially Private Bias-Term Fine-tuning of Foundation Models},
   author={Bu, Zhiqi and Wang, Yu-Xiang and Zha, Sheng and Karypis, George},
-  journal={arXiv preprint arXiv:2210.00036},
+  booktitle={Workshop on Trustworthy and Socially Responsible Machine Learning, NeurIPS 2022},
   year={2022}
 }
 ```
