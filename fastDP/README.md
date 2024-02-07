@@ -37,16 +37,19 @@ Our privacy engine uses Pytorch [forward and backward hooks](https://pytorch.org
 
 To conduct DP bias-term fine-tuning (DP-BiTFiT [6]), simply freeze all non-bias terms:
 ```python
-for name, param in model.named_parameters():
-    if '.bias' in name:
-        param.requires_grad_(False)
+[param.requires_grad_(False) for name, param in model.named_parameters() if '.bias' not in name]
 ```
 Note that for two-phase DP training (Section 4.4, [6]), one need to detach the first engine and attach a new engine to a new optimizer. See `image_classification/CIFAR_TIMM_2phase.py` for details.
 
 ### References
 [1] Goodfellow, Ian. "Efficient per-example gradient computations." arXiv preprint arXiv:1510.01799 (2015).
+
 [2] Li, Xuechen, Florian Tramer, Percy Liang, and Tatsunori Hashimoto. "Large language models can be strong differentially private learners." arXiv preprint arXiv:2110.05679 (2021).
+
 [3] Bu, Zhiqi, Jialin Mao, and Shiyun Xu. "Scalable and Efficient Training of Large Convolutional Neural Networks with Differential Privacy." arXiv preprint arXiv:2205.10683 (2022).
+
 [4] Bu, Zhiqi, Yu-Xiang Wang, Sheng Zha, and George Karypis. "Differentially Private Optimization on Large Model at Small Cost." arXiv preprint arXiv:2210.00038 (2022).
+
 [5] Yousefpour, Ashkan, Igor Shilov, Alexandre Sablayrolles, Davide Testuggine, Karthik Prasad, Mani Malek, John Nguyen et al. "Opacus: User-friendly differential privacy library in PyTorch." arXiv preprint arXiv:2109.12298 (2021).
+
 [6] Bu, Zhiqi, Yu-Xiang Wang, Sheng Zha, and George Karypis. "Differentially Private Bias-Term only Fine-tuning of Foundation Models." arXiv preprint arXiv:2210.00036 (2022).
