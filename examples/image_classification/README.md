@@ -2,6 +2,12 @@
 
 We provide the scripts to implement DP optimization on CIFAR10, CIFAR100, SVHN, ImageNet, CelebA, Places365, INaturalist, and other datasets, using the models (CNN and ViT) from [TIMM](https://github.com/rwightman/pytorch-image-models/tree/master/timm/models). Supported models include VGG, ResNet, Wide ResNet, ViT, CrossViT, BEiT, DEiT, ... 
 
+### Multi-GPU distributed learning
+See `ZERO_examples` folder. Our privacy engine supports DeepSpeed (ZeRO 1+2+3) and FSDP with mixed precision training. For example,
+```plaintext
+deepspeed CIFAR_TIMM_ZERO1.py --model vit_large_patch16_224 --cifar_data CIFAR10 --deepspeed_config cifar_config.json
+```
+
 ### CIFAR10/CIFAR100
 ```plaintext
 python -m CIFAR_TIMM --model vit_large_patch16_224 --origin_params 'patch_embed.proj.bias' --clipping_mode BK-MixOpt --cifar_data CIFAR10
