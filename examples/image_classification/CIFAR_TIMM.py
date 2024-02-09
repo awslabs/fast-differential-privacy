@@ -64,6 +64,9 @@ def main(args):
             clipping_mode=args.clipping_mode[3:]
         else:
             clipping_mode='ghost'
+
+        if args.clipping_style in [['all-layer'],['layer-wise'],['param-wise']]:
+            args.clipping_style=args.clipping_style[0]
         privacy_engine = PrivacyEngine(
             net,
             batch_size=args.bs,
