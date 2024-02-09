@@ -179,7 +179,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='PyTorch CIFAR Training')
-    parser.add_argument('--lr', default=1e-4, type=float, help='learning rate')
+    parser.add_argument('--lr', default=5e-4, type=float, help='learning rate')
     parser.add_argument('--epochs', default=5, type=int,
                         help='numter of epochs')
     parser.add_argument('--bs', default=1000, type=int, help='batch size')
