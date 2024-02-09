@@ -45,16 +45,6 @@ def mixed_ghost_norm(layer,A,B,conv=False):
         layer.use_gc = bool(2*T**2 <= d_times_p)
         #assert d*p == d_times_p
         #print(layer,'\n use ghost clip: ',layer.use_gc,'\n T= ',T,';d= ',d,';p= ',p,';2T^2= ',2*T**2,';pd= ',p*d)
-        B=100
-        layer.BKtime=B*(6*T*d*p+layer.use_gc*2*(T**2)*(p+d))
-        layer.nonDPtime=B*(6*T*d*p)
-        layer.GhostCliptime=B*(10*T*d*p+2*(T**2)*(p+d))
-        layer.Opacustime=B*(8*T*d*p)
-
-        layer.BKspace=p*d+B*(min(2*(T**2),p*d)+T*(3*d+p))
-        layer.nonDPspace=p*d+B*T*(3*d+p)
-        layer.GhostClipspace=p*d+(B*2*(T**2)+B*T*(3*d+p))
-        layer.Opacusspace=p*d+(B*d*p+B*T*(3*d+p))
 
 def sum_over_all_but_batch_and_last_n(tensor: torch.Tensor, n_dims: int) -> torch.Tensor:
     if tensor.dim() == n_dims + 1:
