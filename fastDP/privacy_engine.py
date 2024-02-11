@@ -292,9 +292,9 @@ class PrivacyEngine(object):
                 for i, group in enumerate(self.bit16_groups):
                     for param in group:
                         if param.grad is not None:
-                            if hasattr(param,'summed_clipped_grad'):
-                                param.grad = torch.nan_to_num(param.summed_clipped_grad).contiguous()+torch.normal(mean=0, std=param.noise,size=param.size(), device=param.device, dtype=param.dtype);#print('++++++++++++++++++',param.grad.dtype)
-                                del param.summed_clipped_grad # release memory
+                            if hasattr(param,'private_grad'):
+                                param.grad = torch.nan_to_num(param.private_grad).contiguous()#+torch.normal(mean=0, std=param.noise,size=param.size(), device=param.device, dtype=param.dtype)
+                                del param.private_grad # release memory
                                 param.grad = param.grad / param.batch_size * self.loss_scale # it works
                             else:
                                 param.grad.zero_()
@@ -360,10 +360,9 @@ class PrivacyEngine(object):
                 del layer.activations
             if hasattr(layer,'backprops'):
                 del layer.backprops
-        for name,param in self.named_params:
-            param.requires_grad=bool(param.initially_requires_grad)
-            if hasattr(param,'summed_clipped_grad'):
-                del param.summed_clipped_grad
+            for param in layer.parameters():
+              if hasattr(param,'private_grad'):
+                del param.private_grad
 
                     
     def _create_noisy_clipped_gradient(self):
@@ -371,7 +370,7 @@ class PrivacyEngine(object):
         
         unsupported_param_name=[]
         for name,param in list(self.named_params):#https://thispointer.com/python-remove-elements-from-a-list-while-iterating/#1
-            if not hasattr(param, 'summed_clipped_grad'):
+            if not hasattr(param, 'private_grad'):
                 unsupported_param_name.append(name)
                 self.named_params.remove((name,param)) # very helpful for models that are not 100% supported, e.g. in timm
         if unsupported_param_name!=[]:
@@ -380,19 +379,11 @@ class PrivacyEngine(object):
         signals, noises = [], []
         
         for name,param in self.named_params:
-            param.grad = param.summed_clipped_grad  # Ultra important to override `.grad`.
-            del param.summed_clipped_grad
+            param.grad = param.private_grad  # Ultra important to override `.grad`.
+            del param.private_grad
 
             if self.record_snr:
                 signals.append(param.grad.reshape(-1).norm(2))
-            if self.noise_multiplier > 0 and self.max_grad_norm > 0:
-                param.grad += torch.normal(
-                    mean=0,
-                    std=param.noise,
-                    size=param.size(),
-                    device=param.device,
-                    dtype=param.dtype,
-                )
             if self.loss_reduction=='mean':
                 param.grad /= self.batch_size                
 
