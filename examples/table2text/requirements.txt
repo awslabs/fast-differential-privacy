@@ -1,2 +1,3 @@
 fire
 datasets
+gdown>=5.0
