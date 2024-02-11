@@ -57,7 +57,6 @@ def main(args):
             target_epsilon=args.epsilon,
             clipping_mode='MixOpt',
             clipping_style=args.clipping_style,
-            origin_params=args.origin_params,
             num_GPUs=torch.distributed.get_world_size(),
             torch_seed_is_fixed=True,
         )
@@ -146,7 +145,6 @@ if __name__ == '__main__':
     parser.add_argument('--model', default='vit_gigantic_patch14_224', type=str)
     parser.add_argument('--cifar_data', type=str, default='CIFAR100')
     parser.add_argument('--dimension', type=int,default=224)
-    parser.add_argument('--origin_params', nargs='+', default=['patch_embed.proj.bias'])
     parser.add_argument('--clipping_style', type=str, default='layer-wise')
 
     parser.add_argument('--local_rank',
