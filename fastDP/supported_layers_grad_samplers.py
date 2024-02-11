@@ -374,24 +374,17 @@ _supported_layers_norm_sample_AND_clipping = {
     transformers.models.t5.modeling_t5.T5LayerNorm: (_compute_t5_layer_norm_grad_sample, _clip_t5_layer_norm_grad),
 }
 
-#%  we need param.summed_clipped_grad to avoid contamination from non-private .grad
-def _create_or_extend_summed_clipped_grad(param: torch.Tensor, summed_clipped_grad: torch.Tensor) -> None:
-    """Adds summed clipped gradient (not per-sample) to param.summed_clipped_grad or accumulate the existing tensor."""
-    
-    assert summed_clipped_grad.shape == param.shape, f"summed clipped grad.size()={summed_clipped_grad.size()}, param.size()={param.size()}"
-
-    if hasattr(param, "summed_clipped_grad"):
-        param.summed_clipped_grad += summed_clipped_grad.detach()
-    else:
-        param.summed_clipped_grad = summed_clipped_grad.detach();#print(torch.normal(0,1,size=(1,1)))
-        #print(param.summed_clipped_grad.dtype)
-
-#%  we need param.private_grad stores either noise+first micro-batch summed_clipped_grad or only summed_clipped_grad
-def _create_or_extend_private_grad(param: torch.Tensor, summed_clipped_grad: torch.Tensor) -> None:
+#%  we need a new attribute param.private_grad to avoid contamination from non-private .grad
+#  we use param.private_grad stores either noise+first micro-batch summed_clipped_grad or only summed_clipped_grad
+# note DeepSpeed will not accumulate attribute of param, so param.private_grad does not +=
+def _create_or_extend_private_grad(param: torch.Tensor, summed_clipped_grad: torch.Tensor, accumulate_private_grad = True) -> None:
     """Adds summed clipped gradient (not per-sample) to param.summed_clipped_grad or accumulate the existing tensor."""
 
     assert summed_clipped_grad.shape == param.shape, f"summed clipped grad.size()={summed_clipped_grad.size()}, param.size()={param.size()}"
     if hasattr(param, "private_grad"):
+      if accumulate_private_grad == True:
+        param.private_grad += summed_clipped_grad.detach()
+      else:
         param.private_grad = summed_clipped_grad.detach()
     else:
         param.private_grad = summed_clipped_grad.detach()+torch.normal(mean=0, std=param.noise,size=param.size(), device=param.device, dtype=param.dtype)
