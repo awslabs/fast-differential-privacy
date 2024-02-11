@@ -125,13 +125,13 @@ def _per_block_clip_grad(
             _, compute_layer_grad = _supported_layers_norm_sample_AND_clipping.get(type(layer))
             grad_weight = compute_layer_grad(layer, layer.activations, torch.einsum('b...,b->b...',layer.backprops,C), C)
             del layer.activations, layer.backprops
-            _create_or_extend_private_grad(layer.weight, grad_weight)
+            _create_or_extend_private_grad(layer.weight, grad_weight, accumulate_private_grad = False)
             
         if hasattr(layer,'bias') and hasattr(layer.bias,'requires_grad') and layer.bias.requires_grad and hasattr(layer.bias,'grad_sample') and hasattr(layer.bias,'norm_sample'):
             #--- bias, compute clipped gradient
             grad_bias = torch.einsum("b...,b->...", layer.bias.grad_sample, C)#(layer.bias.grad_sample*C.unsqueeze(1)).sum(dim=0)#
             del layer.bias.grad_sample
-            _create_or_extend_private_grad(layer.bias, grad_bias)
+            _create_or_extend_private_grad(layer.bias, grad_bias, accumulate_private_grad = False)
                 
     elif clipping_style=='param-wise':
         if hasattr(layer,'weight') and hasattr(layer.weight,'norm_sample'):
@@ -160,14 +160,14 @@ def _per_block_clip_grad(
             grad_weight = compute_layer_grad(layer, layer.activations, torch.einsum('b...,b->b...',layer.backprops,C_weight), C_weight)
             del layer.activations, layer.backprops
             
-            _create_or_extend_private_grad(layer.weight, grad_weight)
+            _create_or_extend_private_grad(layer.weight, grad_weight, accumulate_private_grad = False)
             
             
         #--- bias, compute clipped gradient
         if hasattr(layer,'bias') and hasattr(layer.bias,'requires_grad') and layer.bias.requires_grad and hasattr(layer.bias,'grad_sample') and hasattr(layer.bias,'norm_sample'):
             grad_bias = torch.einsum("b...,b->...", layer.bias.grad_sample, C_bias)
             del layer.bias.grad_sample
-            _create_or_extend_private_grad(layer.bias, grad_bias)
+            _create_or_extend_private_grad(layer.bias, grad_bias, accumulate_private_grad = False)
     else:
         raise ValueError(f"Unknown clipping style {clipping_style}. Expected one of 'layer-wise','param-wise'.")
 
