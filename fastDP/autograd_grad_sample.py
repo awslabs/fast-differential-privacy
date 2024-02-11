@@ -11,7 +11,7 @@ from typing import Tuple
 import torch
 import torch.nn as nn
 
-from .supported_layers_grad_samplers import _supported_layers_norm_sample_AND_clipping,_create_or_extend_summed_clipped_grad
+from .supported_layers_grad_samplers import _supported_layers_norm_sample_AND_clipping,_create_or_extend_private_grad
 
 def requires_grad(module: nn.Module) -> bool:
     """
@@ -124,13 +124,13 @@ def _per_block_clip_grad(
                 _, compute_layer_grad = _supported_layers_norm_sample_AND_clipping.get(type(layer))
                 grad_weight = compute_layer_grad(layer, layer.activations, torch.einsum('b...,b->b...',layer.backprops,C), C)
                 del layer.activations, layer.backprops
-                _create_or_extend_summed_clipped_grad(layer.weight, grad_weight)
+                _create_or_extend_private_grad(layer.weight, grad_weight)
                 
             if hasattr(layer,'bias') and hasattr(layer.bias,'initially_requires_grad') and layer.bias.initially_requires_grad and hasattr(layer.bias,'grad_sample') and hasattr(layer.bias,'norm_sample'):
                 #--- bias, compute clipped gradient
                 grad_bias = torch.einsum("b...,b->...", layer.bias.grad_sample, C)
                 del layer.bias.grad_sample
-                _create_or_extend_summed_clipped_grad(layer.bias, grad_bias)
+                _create_or_extend_private_grad(layer.bias, grad_bias)
                 
     elif clipping_style =='layer-wise':
 
@@ -153,13 +153,13 @@ def _per_block_clip_grad(
             del layer.activations, layer.backprops
             if hasattr(layer.weight,'grad_sample'):
                 print(type(layer))
-            _create_or_extend_summed_clipped_grad(layer.weight, grad_weight)
+            _create_or_extend_private_grad(layer.weight, grad_weight)
             
         if hasattr(layer,'bias') and hasattr(layer.bias,'initially_requires_grad') and layer.bias.initially_requires_grad and hasattr(layer.bias,'grad_sample') and hasattr(layer.bias,'norm_sample'):
             #--- bias, compute clipped gradient
             grad_bias = torch.einsum("b...,b->...", layer.bias.grad_sample, C)
             del layer.bias.grad_sample
-            _create_or_extend_summed_clipped_grad(layer.bias, grad_bias)
+            _create_or_extend_private_grad(layer.bias, grad_bias)
                 
     elif clipping_style=='param-wise':
         if hasattr(layer,'weight') and hasattr(layer.weight,'norm_sample'):
@@ -188,15 +188,15 @@ def _per_block_clip_grad(
             grad_weight = compute_layer_grad(layer, layer.activations, torch.einsum('b...,b->b...',layer.backprops,C_weight), C_weight)
             del layer.activations, layer.backprops
             
-            _create_or_extend_summed_clipped_grad(layer.weight, grad_weight)
+            _create_or_extend_private_grad(layer.weight, grad_weight)
             
             
         #--- bias, compute clipped gradient
         if hasattr(layer,'bias') and hasattr(layer.bias,'initially_requires_grad') and layer.bias.initially_requires_grad and hasattr(layer.bias,'grad_sample') and hasattr(layer.bias,'norm_sample'):
             grad_bias = torch.einsum("b...,b->...", layer.bias.grad_sample, C_bias)
             del layer.bias.grad_sample
-            _create_or_extend_summed_clipped_grad(layer.bias, grad_bias)
-            
+            _create_or_extend_private_grad(layer.bias, grad_bias)
+
     for name,param in named_params:
-        if hasattr(param,'norm_sample'):
-            del param.norm_sample
+      if hasattr(param,'norm_sample'):
+          del param.norm_sample
