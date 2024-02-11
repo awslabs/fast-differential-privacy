@@ -378,7 +378,7 @@ _supported_layers_norm_sample_AND_clipping = {
 #  we use param.private_grad stores either noise+first micro-batch summed_clipped_grad or only summed_clipped_grad
 # note DeepSpeed will not accumulate attribute of param, so param.private_grad does not +=
 def _create_or_extend_private_grad(param: torch.Tensor, summed_clipped_grad: torch.Tensor, accumulate_private_grad = True) -> None:
-    """Adds summed clipped gradient (not per-sample) to param.summed_clipped_grad or accumulate the existing tensor."""
+    """Adds summed clipped gradient (not per-sample) to param.private_grad or accumulate the existing tensor."""
 
     assert summed_clipped_grad.shape == param.shape, f"summed clipped grad.size()={summed_clipped_grad.size()}, param.size()={param.size()}"
     if hasattr(param, "private_grad"):
