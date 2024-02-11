@@ -106,7 +106,7 @@ def main(
     model_name_or_path="roberta-base",
     data_dir="text_classification/data/original",
     learning_rate=None,
-    clipping_mode="ghost",
+    clipping_mode="MixOpt",
     clipping_fn="automatic",
     clipping_style="all-layer",
     non_private="no",
