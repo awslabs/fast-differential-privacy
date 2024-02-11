@@ -7,7 +7,7 @@
 ## Installation.
 To install the library after Git clone, run
 ```bash
-python -m setup develop --user
+python -m setup develop
 ```
 
 > :warning: **NOTE**: We strongly recommend Python>=3.8 and torch<=1.11 (it is a known issue that torch 1.12 can slow down as much as 3 times).
