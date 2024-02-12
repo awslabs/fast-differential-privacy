@@ -69,12 +69,8 @@ def tokenize_multipart_input(
     other_sent_limit: Optional[int] = None,
     truncate_head=False,
     support_labels=None,
-
-    # lxuechen: Not sure why these were included originally.
     task_name=None,
     gpt3=False,
-
-    # lxuechen: For checking the dataset.
     early_return=False,
 ):
     """Tokenize (potentially multiple) sentences according to a potential pattern.
@@ -344,8 +340,6 @@ class FewShotDataset(torch.utils.data.Dataset):
             # We do not do multiple sampling when not using demonstrations or when it's the training mode 
             self.num_sample = 1
         else:
-            # lxuechen: (Section 6.1) At testing time, we still sample demonstration sets from Dtrain
-            # and ensemble predictions across all sets.
             self.num_sample = args.num_sample
 
         # If we use multiple templates, we also need to do multiple sampling during inference.
@@ -359,7 +353,6 @@ class FewShotDataset(torch.utils.data.Dataset):
         # Load cache
         # Cache name distinguishes mode, task name, tokenizer, and length. So if you change anything beyond these
         # elements, make sure to clear your cache.
-        # --- lxuechen: Change cache name to distinguish between original GLUE.
         cached_features_file = os.path.join(
             cache_dir if cache_dir is not None else args.data_dir,
             "cached_{}_{}_{}_{}_few_shot".format(
@@ -435,7 +428,6 @@ class FewShotDataset(torch.utils.data.Dataset):
             assert len(self.query_emb) == len(self.query_examples)
 
         # Size is expanded by num_sample
-        # --- lxuechen: Don't expand when you force not to use demo during inference.
         if args.inference_time_demo:
             self.size = len(self.query_examples) * self.num_sample
         else:
@@ -500,10 +492,6 @@ class FewShotDataset(torch.utils.data.Dataset):
                                                                 self.support_examples[support_idx].text_a))  # debug
                 else:
                     # Using demonstrations without filtering
-
-                    # --- lxuechen: This shit code creates a list `context_indices` of size the
-                    #   training set for each example. No wonder it gives RAM errors...
-                    #   Patching memory error...
                     if not use_demo and not args.inference_time_demo:
                         context_indices = []
                     else:
@@ -519,8 +507,6 @@ class FewShotDataset(torch.utils.data.Dataset):
         # If it is not training, we pre-process the data; otherwise, we process the data online.
         # For any test/eval example, we sample one context for each class label;
         # this procedure is repeated num_sample times.
-        # TODO(lxuechen): When does self.features get used?
-        # --- lxuechen: Don't create features if don't use demo at inference time
         if mode != "train" and args.inference_time_demo:
             # ---
             self.features = []
@@ -670,9 +656,7 @@ class FewShotDataset(torch.utils.data.Dataset):
                 label_word_list=label_word_list,
                 first_sent_limit=self.args.first_sent_limit,
                 other_sent_limit=self.args.other_sent_limit,
-                # --- lxuechen: Enable toggling this.
                 truncate_head=self.args.truncate_head,
-                # ---
             )
             features = OurInputFeatures(**inputs, label=example_label)
 
