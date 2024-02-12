@@ -49,7 +49,7 @@ deepspeed table2text/run_language_modeling_ZERO23.py --deepspeed_config ${deepsp
   --line_by_line \
   --save_steps 100 --save_total_limit 1 --save_at_last no \
   --logging_dir ${output_dir} --logging_steps -1 \
-  --seed 2 \
+  --seed 0 \
   --dataloader_num_workers 2 \
   --eval_steps -1 --eval_epochs 999 --max_eval_batches 100 --evaluation_strategy epoch --evaluate_before_training "no" \
   --evaluate_during_training "no" --per_device_eval_batch_size 10 \
