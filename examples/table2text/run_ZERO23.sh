@@ -47,7 +47,7 @@ deepspeed table2text/run_language_modeling_ZERO23.py --deepspeed_config ${deepsp
   --tokenizer_name ${model_name_or_path} \
   --do_train --do_eval \
   --line_by_line \
-  --save_steps -1 --save_total_limit 1 --save_at_last no \
+  --save_steps 100 --save_total_limit 1 --save_at_last no \
   --logging_dir ${output_dir} --logging_steps -1 \
   --seed 2 \
   --dataloader_num_workers 2 \
