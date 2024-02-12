@@ -51,8 +51,8 @@ deepspeed table2text/run_language_modeling_ZERO23.py --deepspeed_config ${deepsp
   --logging_dir ${output_dir} --logging_steps -1 \
   --seed 2 \
   --dataloader_num_workers 2 \
-  --eval_steps 100 --eval_epochs 999 --max_eval_batches 100 --evaluation_strategy epoch --evaluate_before_training "no" \
-  --evaluate_during_training "no" --per_device_eval_batch_size 10 --skip_generation "yes" \
+  --eval_steps -1 --eval_epochs 999 --max_eval_batches 100 --evaluation_strategy epoch --evaluate_before_training "no" \
+  --evaluate_during_training "no" --per_device_eval_batch_size 10 \
   --max_generations 9223372036854775807 --max_generations_train 10 --max_generations_valid 9223372036854775807 \
   --max_train_examples 9223372036854775807 --max_valid_examples 9223372036854775807 --max_eval_examples 9223372036854775807 \
   --data_folder ${data_dir} --max_seq_len ${max_seq_len} --format_mode cat \
