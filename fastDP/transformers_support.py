@@ -64,9 +64,7 @@ def swap_openai_gpt_model_forward(model: transformers.OpenAIGPTModel):
         if position_ids is None:
             # Code is different from when we had a single embedding matrix  from position and token embeddings
             position_ids = self.position_ids[None, : input_shape[-1]]
-            # --- lxuechen: Duplicate to make privacy work! ---
             position_ids = position_ids.repeat(input_ids.size(0), 1)
-            # ---
 
         # Attention mask.
         if attention_mask is not None:
@@ -185,9 +183,7 @@ def swap_gpt2_model_forward(model: Union[transformers.GPT2Model, transformers.GP
         if position_ids is None:
             position_ids = torch.arange(past_length, input_shape[-1] + past_length, dtype=torch.long, device=device)
             position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
-            # --- lxuechen: Duplicate to make privacy work! ---
             position_ids = position_ids.repeat(batch_size, 1)
-            # ---
 
         # GPT2Attention mask.
         if attention_mask is not None:
@@ -372,11 +368,9 @@ def swap_bert_model_forward(model: transformers.BertModel):
 
         embeddings = inputs_embeds + token_type_embeddings
         if self.position_embedding_type == "absolute":
-            # --- lxuechen: Duplicate to make privacy work! ---
             batch_size = input_ids.size(0)
             position_ids = position_ids.repeat(batch_size, 1)
             position_embeddings = self.position_embeddings(position_ids)
-            # ---
             embeddings += position_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
@@ -419,11 +413,9 @@ def swap_albert_model_forward(model: transformers.AlbertModel):
 
         embeddings = inputs_embeds + token_type_embeddings
         if self.position_embedding_type == "absolute":
-            # --- lxuechen: Duplicate to make privacy work!
             batch_size = input_ids.size(0)
             position_ids = position_ids.repeat(batch_size, 1)
             position_embeddings = self.position_embeddings(position_ids)
-            # ---
             embeddings += position_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
@@ -448,15 +440,12 @@ def swap_t5_model_forward(model: nn.Module):
             num_buckets=self.relative_attention_num_buckets,
             max_distance=self.relative_attention_max_distance,
         )
-        # ---
-        # lxuechen: Duplicate to make privacy work!
-        # shape (batch_size, q_len x k_len)
+        # ---        # shape (batch_size, q_len x k_len)
         relative_position_bucket = relative_position_bucket.reshape(-1).unsqueeze(0).repeat(batch_size, 1)
         values = self.relative_attention_bias(relative_position_bucket)  # shape (batch_size, q_len x k_len, num_heads)
         # shape (batch_size, q_len, k_len, num_heads)
         values = values.reshape(batch_size, query_length, key_length, values.size(-1))
         values = values.permute([0, 3, 1, 2])  # shape (batch_size, num_heads, query_length, key_length)
-        # ---
         return values
 
         # Original non-duplicated code.
@@ -535,14 +524,12 @@ def swap_t5_model_forward(model: nn.Module):
 
         if position_bias is None:
             if not self.has_relative_attention_bias:
-                # lxuechen: Need batch size in dim=0.
                 position_bias = torch.zeros(
                     (batch_size, self.n_heads, real_seq_length, key_length), device=scores.device, dtype=scores.dtype
                 )
                 if self.gradient_checkpointing and self.training:
                     position_bias.requires_grad = True
             else:
-                # lxuechen: Need batch size aware, due to how embeddings work.
                 position_bias = self.compute_bias(
                     real_seq_length, key_length, batch_size, device=scores.device,
                 )
