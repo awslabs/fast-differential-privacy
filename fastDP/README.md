@@ -1,4 +1,28 @@
-## Notes for privacy engine
+### Two Privacy Engines
+
+FastDP provides two privacy engines to compute the private gradient: **hook-based** and **torch-extending**. These privacy engines are equivalent mathematically, though their applicability and computation efficiency can be different. We summarize the differences and note that some limitations can be overcome with more engineering efforts.
+
+|                           | Hook-based (DP)                  | Torch-extending (DP) | Standard (non-DP)    |
+|:----------------------------:|:-------------------------------:|:----------------:|:------------:| 
+| Speed (1/time complexity)     | ~120%                            | ~150%            | 100% |
+| Memory cost (space complexity)     | 100-130% | ~100%             | 100%         | 
+| ZeRO distribution solution   | ✅ Supported              | ✅ Supported  | ✅ Supported |
+| Most types of layers     | ✅ Supported (see below)                  | ✅ Supported (see below)   | ✅ Supported  | 
+| Per-sample clipping styles     | ✅ Supported for all styles                   | Layer-wise style   |✅ Not needed  |
+| Per-sample clipping functions  | ✅ Supported for all functions                | Automatic clipping    |✅ Not needed  |
+| Modifying optimizers | Needed for `PrivacyEngine`; not needed for ZeRO    | ✅ Not needed   | ✅ Not needed |
+| Private gradient stored in        | `param.private_grad`                    | `param.grad`   | `param.grad`  |
+| Fused kernel  | ✅ Supported                | Not supported    |✅ Supported  |
+| Ghost differentiation (origin param)           | Supported on single GPU        | Not supported   | Not needed  |
+| Recommended usage       | Single GPU or ZeRO   | General   | General  |
+
+#### 1. Hook-based
+Hook-based approach computes the private gradient with forward hooks (to store the activations) and backward hooks (to compute the per-sample gradient norms, to clip and to add noise). See [this tutorial for hooks](https://pytorch.org/tutorials/beginner/former_torchies/nnft_tutorial.html). This approach firstly computes the private gradient then overrides the non-DP gradient.
+
+On single GPU or data parallelism (see `PrivacyEngine`), the hooks are backward module hooks, which are triggered before `param.grad` is computed; in ZeRO (see `PrivacyEngine_Distributed_Stage_2_and_3`), some backward tensor hooks are in place, which are triggered after `param.grad` has been computed.
+
+#### 2. Torch-extending
+Torch-extending approach computes the private gradient directly by re-writeing the model's back-propagation mechanism (see `PrivacyEngine_Distributed_extending`). See [this tutorial for extending torch modules](https://pytorch.org/docs/stable/notes/extending.html#extending-torch-nn). This approach overrides the non-DP modules as shown in `supported_differentially_private_layers.py`. Given that this approach does not modify the optimizers and the communication orchestra of distributed solutions, it is expected to be applicable generally. However, some slowdown may be observed as the extension is not implemented at C++ level.
 
 ### Supported Modules
 
@@ -39,7 +63,7 @@ To conduct DP bias-term fine-tuning (DP-BiTFiT [6]), simply freeze all non-bias 
 ```python
 [param.requires_grad_(False) for name, param in model.named_parameters() if '.bias' not in name]
 ```
-Note that for two-phase DP training (Section 4.4, [6]), one need to detach the first engine and attach a new engine to a new optimizer. See `image_classification/CIFAR_TIMM_2phase.py` for details.
+Note that for two-phase DP training (e.g. appendix of [6] or DP continual training), one need to detach the first engine and attach a new engine to a new optimizer.
 
 ### References
 [1] Goodfellow, Ian. "Efficient per-example gradient computations." arXiv preprint arXiv:1510.01799 (2015).
