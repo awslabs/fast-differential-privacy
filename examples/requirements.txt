@@ -8,6 +8,7 @@ charset-normalizer==2.0.4
 click==8.0.1
 crcmod==1.7
 cycler==0.10.0
+datasets
 diffimg==0.2.3
 docopt==0.6.2
 fastavro==1.4.1
@@ -15,6 +16,8 @@ filelock==3.0.12
 fire
 fusepy==2.0.4
 future==0.18.3
+gdown>=5.0
+gpytorch
 httplib2==0.17.4
 idna==3.2
 imageio==2.9.0
@@ -67,8 +70,8 @@ threadpoolctl==2.2.0
 tifffile==2021.8.8
 tokenizers==0.10.3
 tqdm>=4.62.1
+transformers<=4.26
 typing-extensions==3.7.4.3
 urllib3==1.26.*
 watchdog==0.10.3
 websocket-client==1.0.1
-gpytorch
