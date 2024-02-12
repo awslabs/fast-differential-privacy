@@ -159,7 +159,6 @@ class Trainer(transformers.Trainer):
         self.model_args = model_args
         self.scaler = torch.cuda.amp.GradScaler(init_scale=128)
 
-    # --- lxuechen: Not sure why v4.10.0 removed this function...
     def is_local_master(self) -> bool:
         if is_torch_tpu_available():
             return xm.is_master_ordinal(local=True)
@@ -261,9 +260,7 @@ class Trainer(transformers.Trainer):
         self.objective = -float("inf")
         self.dev_objective = default_dev_objective if dev_objective is None else dev_objective
         self.dev_objective_key = default_dev_objective_key if dev_objective_key is None else dev_objective_key
-        # --- lxuechen: Don't use self.state.log_history. Given implementation so convoluted...
         self.log_history = []
-        # ---
 
         # Data loading.
         training_setup = self.get_training_setup()
@@ -517,14 +514,12 @@ class Trainer(transformers.Trainer):
         logging_loss_scalar,
         scheduler,
     ):
-        # lxuechen: Defaults to use .eval_dataset, which is set to 'dev'.
         output = self.evaluate()
         metrics = output.metrics
 
         objective = self.dev_objective(metrics)
         objective_key = self.dev_objective_key(metrics)
 
-        # --- lxuechen: Print the metrics in a pretty format.
         print('metrics: ')
         print(json.dumps(metrics, indent=4))
         print(f'dev objective {objective_key}: {objective}')
@@ -535,7 +530,6 @@ class Trainer(transformers.Trainer):
             self.objective = objective
             self.save_model(self.args.output_dir)
 
-        # --- lxuechen: Combine logging and evaluation
         logs = dict(dev=metrics)
 
         tr_loss_scalar = tr_loss.item()
