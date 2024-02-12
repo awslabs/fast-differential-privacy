@@ -4,7 +4,7 @@ FastDP provides two privacy engines to compute the private gradient: **hook-base
 
 |                           | Hook-based (DP)                  | Torch-extending (DP) | Standard (non-DP)    |
 |:----------------------------:|:-------------------------------:|:----------------:|:------------:| 
-| Speed (1/time complexity)     | ~120%                            | ~150%            | 100% |
+| Speed (1/time complexity)     | 80-100%                            | ~70%            | 100% |
 | Memory cost (space complexity)     | 100-130% | ~100%             | 100%         | 
 | ZeRO distribution solution   | ✅ Supported              | ✅ Supported  | ✅ Supported |
 | Most types of layers     | ✅ Supported (see below)                  | ✅ Supported (see below)   | ✅ Supported  | 
