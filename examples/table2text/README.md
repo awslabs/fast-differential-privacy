@@ -31,7 +31,7 @@ Arguments (sequentially):
 
 *   `--clipping_fn`: Which per-sample gradient clipping function use; one of `automatic` (default, [Bu et al., 2022](https://arxiv.org/pdf/2206.07136.pdf)), `Abadi` [(Abadi et al., 2016)](https://arxiv.org/pdf/1607.00133.pdf) , `global` [(Bu et al., 2021)](https://arxiv.org/pdf/2106.07830.pdf).
 
-*  `--clipping_mode`: Which DP algorithm to implement per-sample gradient clipping; one of `ghost` (default, meaning book-keeping), `MixGhostClip`, `MixOpt`. All three modes are from [Bu et al., 2022](https://arxiv.org/pdf/2210.00038.pdf).
+*  `--clipping_mode`: Which DP algorithm to implement per-sample gradient clipping; one of `MixOpt` (default, meaning hybrid book-keeping), `MixGhostClip`, `ghost`. All three modes are from [Bu et al., 2022](https://arxiv.org/pdf/2210.00038.pdf).
 
 ### Running on multi-GPU distributed learning
 
@@ -39,7 +39,7 @@ Use the `run_ZERO1.sh`, `run_ZERO23.sh` and `run_ZERO_extending.py` in the folde
 
 For instance, run the following under the `examples` folder:
 ```plaintext
-bash table2text/run_ZERO1.sh table2text/prefix-tuning <output_dir> "e2e" "gpt2"
+bash table2text/run_ZERO1.sh table2text/prefix-tuning ToDeleteNLG "e2e" "gpt2"
 ```
 
 ### Evaluation
