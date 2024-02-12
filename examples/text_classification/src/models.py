@@ -39,8 +39,7 @@ class BertForPromptFinetuning(BertForMaskedLM):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.bert = BertModel(config, add_pooling_layer=add_pooling_layer)
-        # lxuechen: The name of this variable must be `.cls`! Otherwise, error in loading
-        # and you implicitly get random weights!!!
+        # The name of this variable must be `.cls`! Otherwise, error in loading and you implicitly get random weights!!!
         self.cls = BertOnlyMLMHead(config)
         self.init_weights()
 
@@ -184,8 +183,7 @@ class RobertaForPromptFinetuning(BertPreTrainedModel):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.roberta = RobertaModel(config, add_pooling_layer=add_pooling_layer)
-        # lxuechen: The name of this variable must be `.lm_head`! Otherwise, error in loading,
-        #   and you implicitly get random weights!!!
+        # The name of this variable must be `.lm_head`! Otherwise, error in loading and you implicitly get random weights!!!
         self.lm_head = RobertaLMHead(config)
         self.init_weights()
 
@@ -229,7 +227,6 @@ class RobertaForPromptFinetuning(BertPreTrainedModel):
         # Encode everything
         outputs = self.roberta(input_ids, attention_mask=attention_mask)
 
-        # --- lxuechen: pooled_output does not seem to be used!
         sequence_output, = outputs[:1]
         # Pick the entries that correspond to labels.
         sequence_mask_output = sequence_output[torch.arange(batch_size), mask_pos]
@@ -284,8 +281,7 @@ class AlbertForPromptFinetuning(BertPreTrainedModel):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.albert = AlbertModel(config, add_pooling_layer=add_pooling_layer)
-        # lxuechen: The name of this variable must be `.predictions`! Otherwise, error in loading
-        # and you implicitly get random weights!!!
+        # The name of this variable must be `.predictions`! Otherwise, error in loading and you implicitly get random weights!!!
         self.predictions = AlbertMLMHead(config)
         self.init_weights()
 
@@ -330,11 +326,9 @@ class AlbertForPromptFinetuning(BertPreTrainedModel):
         # Encode everything
         outputs = self.albert(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
 
-        # --- lxuechen: pooled_output does not seem to be used!
         sequence_output, = outputs[:1]
         # Pick the entries that correspond to labels.
         sequence_mask_output = sequence_output[torch.arange(batch_size), mask_pos]
-        # ---
 
         # # Get <mask> token representation
         # sequence_output, pooled_output = outputs[:2]
@@ -350,7 +344,6 @@ class AlbertForPromptFinetuning(BertPreTrainedModel):
             return prediction_mask_scores
 
         # Return logits for each label
-        # --- lxuechen: This is only slow for large number of labels.
         logits = []
         for label_id in range(len(self.label_word_list)):
             logits.append(prediction_mask_scores[:, self.label_word_list[label_id]].unsqueeze(-1))
