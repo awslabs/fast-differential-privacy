@@ -227,8 +227,7 @@ class Sst2Processor(DataProcessor):
             guid = "%s-%s" % (set_type, i)
             text_a = line[text_index]
 
-            # --- lxuechen: Make the non-few-shot setting work.
-            # Test sets might not have labels; just use a dummy thing at the moment.
+            # --- Make the non-few-shot setting work. Test sets might not have labels.
             if len(line) < 2:
                 dummy_label = self.get_labels()[0]
                 label = dummy_label
