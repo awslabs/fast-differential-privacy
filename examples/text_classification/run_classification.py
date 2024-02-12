@@ -583,8 +583,8 @@ def main():
         for name, param in model.named_parameters():
             if '.bias' not in name:
                 param.requires_grad_(False)
-        if model_args.static_lm_head and hasattr(model, 'lm_head'):
-            model.lm_head.requires_grad_(False)
+        if not model_args.static_lm_head and hasattr(model, 'lm_head'):
+            model.lm_head.requires_grad_(True)
     else:
         model.requires_grad_(True)
         if model_args.static_embedding:
