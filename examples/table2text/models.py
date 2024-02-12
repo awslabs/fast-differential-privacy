@@ -99,7 +99,6 @@ class PrefixTuner(GPT2PreTrainedModel):
         # src/transformers/generation_utils.py
         # src/transformers/models/gpt2/modeling_gpt2.py
 
-        # --- lxuechen: This part is really error-prone!
         #   A sanity check is to optimize the model for a few updates and check if the beam-search generations changed.
         #   The confusing logic in generation_utils:
         #       1) `past` is used in `GPT2LMHeadModel:prepare_inputs_for_generation`,
@@ -119,7 +118,6 @@ class PrefixTuner(GPT2PreTrainedModel):
             use_cache=True,
             position_ids=None,
 
-            # --- lxuechen: These arguments I created to make sure prefix-tuning works correctly.
             #   The logic: At beginning, past=None, and then it gets replaced with past_key_values.
             #              Can't directly give in past, since otherwise, input_ids gets truncated to the last index.
             use_past_key_values_as_past_at_init=True,
