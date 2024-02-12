@@ -55,12 +55,12 @@ deepspeed table2text/run_language_modeling.py --deepspeed_config ${deepspeed_con
   --tokenizer_name ${model_name_or_path} \
   --do_train --do_eval \
   --line_by_line \
-  --save_steps 100 --save_total_limit 1 --save_at_last no \
+  --save_steps -1 --save_total_limit 1 --save_at_last no \
   --logging_dir ${output_dir} --logging_steps -1 \
   --seed 2 \
   --dataloader_num_workers 2 \
   --eval_steps 100 --eval_epochs 999 --max_eval_batches 100 --evaluation_strategy epoch --evaluate_before_training "no" \
-  --evaluate_during_training "no" --per_device_eval_batch_size 10 --skip_generation "yes" \
+  --evaluate_during_training "no" --per_device_eval_batch_size 10 \
   --max_generations 9223372036854775807 --max_generations_train 10 --max_generations_valid 9223372036854775807 \
   --max_train_examples 9223372036854775807 --max_valid_examples 9223372036854775807 --max_eval_examples 9223372036854775807 \
   --data_folder ${data_dir} --max_seq_len ${max_seq_len} --format_mode cat \
