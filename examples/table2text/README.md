@@ -1,13 +1,5 @@
 ## DP natural language generation with Huggingface transformers
 
-### Requirements
-
-In addition to requirements of the `private-transformers` package, install requirements by running the following from the `table2text` folder of this repo:
-
-```plaintext
-pip install -r requirements.txt --no-dependencies
-```
-
 ### Getting the data
 
 E2E and DART datasets are adapted from \[[Li & Liang, 2021](https://arxiv.org/abs/2101.00190)\] and hosted by \[[Li et al., 2021](https://arxiv.org/abs/2110.05679)\] at [Google drive](https://drive.google.com/file/d/1Re1wyUPtS3IalSsVVJhSg2sn8UNa7DM7/view?usp=sharing). To obtain the data, run
