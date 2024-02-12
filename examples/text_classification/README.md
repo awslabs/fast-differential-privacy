@@ -1,13 +1,5 @@
 ## DP text classification with Huggingface transformers
 
-### Requirements
-
-In addition to requirements of the `private-transformers` package, install requirements by running the following from the `text_classification` folder of this repo:
-
-```plaintext
-pip install -r requirements.txt --no-dependencies
-```
-
 ### Getting the data
 
 We adopt the data pipeline by \[[Li et al., 2021](https://arxiv.org/pdf/2110.05679.pdf)\], which is adapted from the excellent work by \[[Gao et al., 2021](https://arxiv.org/pdf/2012.15723.pdf)\]. To obtain the data, run the following:
