@@ -832,7 +832,7 @@ def main():
             eval_task_names.append(data_args.task_name)
             eval_splits.append(split)
 
-            # --- lxuechen: This block depends on `split`.
+            # --- This block depends on `split`.
             if data_args.task_name == "mnli":
                 mnli_mm_data_args = dataclasses.replace(data_args, task_name="mnli-mm")
                 eval_task_names.append(mnli_mm_data_args.task_name)
@@ -856,7 +856,6 @@ def main():
             output = trainer.evaluate(eval_dataset=eval_dataset)
             eval_result = output.metrics
 
-            # --- lxuechen: My evaluation procedure.
             if eval_result is not None:
                 if not privacy_args.non_private:
                     privacy_spent = privacy_engine.get_privacy_spent(accounting_mode="all", lenient=True)
