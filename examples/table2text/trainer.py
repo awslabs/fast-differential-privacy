@@ -519,11 +519,10 @@ class Trainer:
                         # In all cases (even distributed/parallel), self.model is always a reference
                         # to the model we want to save.
                         if hasattr(model, "module"):
-                            assert (
-                                model.module is self.model
-                            ), f"Module {model.module} should be a reference to self.model"
+                            self.model = model.module
                         else:
-                            assert model is self.model, f"Model {model} should be a reference to self.model"
+                            self.model = model
+
                         # Save model checkpoint
                         checkpoint_folder = f"{PREFIX_CHECKPOINT_DIR}-{self.global_step}"
                         output_dir = os.path.join(self.args.output_dir, checkpoint_folder)
@@ -969,7 +968,6 @@ class Trainer:
             # Clean the state at the end of the evaluation loop
             delattr(self, "_past")
 
-        # lxuechen: I removed everything regarding distributed training.
         for record_key, record_value in records.items():
             this_record = records[record_key]
             for key, value in this_record.items():
