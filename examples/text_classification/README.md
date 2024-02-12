@@ -22,7 +22,7 @@ Necessary arguments:
 For instance, run the following under the `examples` folder:
 
 ```plaintext
-python -m text_classification.run_wrapper --output_dir ToDelete --task_name sst-2
+python -m text_classification.run_wrapper --output_dir ToDeleteNLU --task_name sst-2
 ```
 
 The script by default uses book-keeping (BK) by [[Differentially Private Optimization on Large Model at Small Cost]](https://arxiv.org/pdf/2210.00038.pdf) for the DP full fine-tuning. Gradient accumulation is used so that larger physical batch size allows faster training at heavier memory burden, but the accuracy is not affected. For SST-2/QNLI/QQP/MNLI, running `roberta-base` on one A100 GPU (40GB) takes around 5/8/37/32 min per epoch.
