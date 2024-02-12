@@ -15,7 +15,7 @@ Use the `run.sh` script in the folder, which runs the `run_language_modeling.py`
 
 For instance, run the following under the `examples` folder:
 ```plaintext
-bash table2text/run.sh table2text/prefix-tuning <output_dir> "e2e" "gpt2"
+bash table2text/run.sh table2text/prefix-tuning ToDeleteNLG "e2e" "gpt2"
 ```
 
 The script by default uses book-keeping (BK) by [[Differentially Private Optimization on Large Model at Small Cost]](https://arxiv.org/pdf/2210.00038.pdf) for the DP full fine-tuning. Gradient accumulation is used so that larger physical batch size allows faster training at heavier memory burden, but the accuracy is not affected. For E2E/DART, training `gpt2` on one A100 GPU (40GB) takes around 2.5/4 min per epoch.
