@@ -16,14 +16,12 @@ from . import transformers_support
 from .accounting import accounting_manager
 from torch.functional import F
 import transformers
-import mstar.models.gpt2_model
 from .supported_differentially_private_layers import *
 
 _DP_supported_layers = [nn.Embedding, 
     nn.Linear,
     nn.Conv2d, nn.LayerNorm, nn.GroupNorm, 
     transformers.pytorch_utils.Conv1D,
-    mstar.models.gpt2_model.Conv1DGeLU,
     ]
     
 class PrivacyEngine_Distributed_extending(object):
