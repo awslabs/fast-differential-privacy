@@ -575,10 +575,6 @@ class DPGELUConv1D(Module):
         self.bias = Parameter(torch.zeros(out_features))
         torch.nn.init.normal_(self.weight, std=0.02)
 
-    def forward(self, input: Tensor) -> Tensor:
-        import mstar
-        return mstar.models.gpt2_model.GeLUFunction.apply(transformerConv1DFunction.apply(input, self.weight, self.bias),torch.tensor(0))
-
 import numbers
 _shape_t = Union[int, List[int], Size]
 
@@ -807,25 +803,6 @@ def replace_transformersConv1D(module):
     if hasattr(module,'children'):
         for immediate_child_module in module.children():
             replace_transformersConv1D(immediate_child_module)
-
-def replace_GELUConv1D(module):
-    for layer_str in dir(module):
-        layer = getattr(module, layer_str)
-        import mstar
-        if type(layer) == mstar.models.gpt2_model.Conv1DGeLU and requires_grad(layer):
-            new_layer = DPGELUConv1D(in_features=layer.weight.shape[0], out_features=layer.weight.shape[1], 
-                               device=layer.weight.device, dtype=layer.weight.dtype)
-            new_layer.weight = layer.weight
-            new_layer.bias = layer.bias
-            del layer
-            setattr(module, layer_str, new_layer)
-
-    # iterate through immediate child modules. Note, the recursion is done by our code no need to use named_modules()
-
-    if hasattr(module,'children'):
-        for immediate_child_module in module.children():
-            replace_GELUConv1D(immediate_child_module)
-
 
 def replace_LayerNorm(module):
     for layer_str in dir(module):
