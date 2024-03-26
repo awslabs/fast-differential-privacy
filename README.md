@@ -25,7 +25,7 @@ privacy_engine = PrivacyEngine(
     epochs=3,
     target_epsilon=2,
     clipping_fn='automatic',
-    clipping_mode='MixOpt'
+    clipping_mode='MixOpt',
     origin_params=None,
     clipping_style='all-layer',
 )
