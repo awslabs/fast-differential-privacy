@@ -556,25 +556,6 @@ class DPtransformersConv1D(Module):
     def forward(self, input: Tensor) -> Tensor:
         return transformerConv1DFunction.apply(input, self.weight, self.bias)
 
-
-class DPGELUConv1D(Module):
-    # https://github.com/huggingface/transformers/blob/main/src/transformers/pytorch_utils.py#L82
-
-    __constants__ = ['in_features', 'out_features']
-    in_features: int
-    out_features: int
-    weight: Tensor
-
-    def __init__(self, in_features: int, out_features: int,
-                 device=None, dtype=None) -> None:
-        factory_kwargs = {'device': device, 'dtype': dtype}
-        super(DPGELUConv1D, self).__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.weight = Parameter(torch.empty((in_features, out_features), **factory_kwargs))
-        self.bias = Parameter(torch.zeros(out_features))
-        torch.nn.init.normal_(self.weight, std=0.02)
-
 import numbers
 _shape_t = Union[int, List[int], Size]
 
