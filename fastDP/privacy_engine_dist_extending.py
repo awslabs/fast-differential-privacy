@@ -195,7 +195,6 @@ class PrivacyEngine_Distributed_extending(object):
         replace_LayerNorm(module)
         replace_GroupNorm(module)
         replace_transformersConv1D(module)
-        replace_GELUConv1D(module)
         
         
         self.module = module
