@@ -1,4 +1,4 @@
-torch~=1.11.0
+torch~=1.11.0+cu113
 prv-accountant
 transformers>=4.20.1
 numpy
