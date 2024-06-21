@@ -45,7 +45,7 @@ class PrivacyEngine_Distributed_Stage_2_and_3(object):
         clipping_mode='MixOpt',
         clipping_fn='automatic',
         loss_reduction='mean',
-        clipping_style='all-layer',
+        clipping_style='layer-wise',
         num_GPUs=1,
         torch_seed_is_fixed=False,
         **unused_kwargs,
