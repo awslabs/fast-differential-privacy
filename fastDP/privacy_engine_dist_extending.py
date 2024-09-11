@@ -18,10 +18,12 @@ from torch.functional import F
 import transformers
 from .supported_differentially_private_layers import *
 
+
 _DP_supported_layers = [nn.Embedding, 
     nn.Linear,
     nn.Conv2d, nn.LayerNorm, nn.GroupNorm, 
     transformers.pytorch_utils.Conv1D,
+    transformers.models.llama.modeling_llama.LlamaRMSNorm
     ]
     
 class PrivacyEngine_Distributed_extending(object):
@@ -195,6 +197,7 @@ class PrivacyEngine_Distributed_extending(object):
         replace_LayerNorm(module)
         replace_GroupNorm(module)
         replace_transformersConv1D(module)
+        replace_llama_rsmnorm(module)
         
         
         self.module = module
