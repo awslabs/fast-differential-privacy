@@ -9,6 +9,7 @@ from torch.nn.parameter import Parameter
 from torch.nn import Module,init
 from torch import Tensor, Size
 import transformers
+
 #%% extending nn.functional with per-sample gradient clipping, through https://pytorch.org/docs/stable/notes/extending.html
 ''' 
 STEPS: (1) create fautograd.Function with new forward and backward, 
@@ -73,6 +74,12 @@ def _linear_weight_norm_sample_psg_T(input, grad_output, grad_norm2):
     clip_factor = 1/(torch.sqrt(grad_norm2.to(input))+1e-4)
     return torch.einsum('B,B...->...',clip_factor,grad_weight), clip_factor
 
+@torch.jit.script
+def _rsm_weight_grad_smaple(input, grad_weight):
+    grad_norm2 = grad_weight.norm(2, dim=-1)**2
+    clip_factor = 1/(torch.sqrt(grad_norm2.to(input))+1e-4)
+    grad_weight = torch.einsum('B,B...->...',clip_factor,grad_weight)
+    return grad_weight
 
 def sum_over_all_but_batch_and_last_n(tensor: torch.Tensor, n_dims: int) -> torch.Tensor:
     if tensor.dim() == n_dims + 1:
@@ -489,7 +496,28 @@ class transformerConv1DFunction(Function):
                     grad_bias = torch.einsum('B,B...->...',clip_factor,grad_bias) / math.sqrt(bias.n_layers) + torch.randn_like(bias, device= bias.device, dtype= bias.dtype)* bias.noise
         return grad_input, grad_weight, grad_bias
 
+class RSMWeightDPFunction(Function):
+    @staticmethod
+    def forward(ctx, input, weight):
+        ctx.save_for_backward(input, weight)
+        return weight * input
 
+    @staticmethod
+    def backward(ctx, grad_output):
+        input, weight = ctx.saved_tensors
+        
+        grad_input = grad_weight = None
+
+        if ctx.needs_input_grad[1]:
+            grad_weight=torch.einsum('B...d,B...d->Bd', input, grad_output)
+            grad_weight = _rsm_weight_grad_smaple(input, grad_weight)
+            grad_weight = grad_weight/math.sqrt(weight.n_layers) \
+                + torch.randn_like(weight, device= weight.device, dtype= weight.dtype)* weight.noise
+
+        if ctx.needs_input_grad[0]:
+            grad_input = torch.einsum('d,B...d->B...d', weight, grad_output)
+
+        return grad_input, grad_weight, None
 
 #%% extending nn.Module with per-sample gradient clipping, through https://pytorch.org/docs/stable/notes/extending.html
 
@@ -747,6 +775,22 @@ class DPEmbedding(Module):
         if self.sparse is not False:
             s += ', sparse=True'
         return s.format(**self.__dict__)
+    
+class DPLlamaRMSNorm(Module):
+    def __init__(self, hidden_size, eps=1e-6, device=None, dtype=None):
+        super().__init__()
+        self.weight = Parameter(torch.ones(hidden_size, device=device, dtype=dtype))
+        self.variance_epsilon = eps
+
+    def forward(self, hidden_states):
+        input_dtype = hidden_states.dtype
+        hidden_states = hidden_states.to(torch.float32)
+        variance = hidden_states.pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
+        return RSMWeightDPFunction.apply(hidden_states.to(input_dtype), self.weight)
+
+    def extra_repr(self):
+        return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
 #%% iteatively replacing nn.Module by our customized modules, must inherit the parameters!!
 from .autograd_grad_sample_dist import requires_grad
 #https://discuss.pytorch.org/t/replacing-convs-modules-with-custom-convs-then-notimplementederror/17736
@@ -858,3 +902,20 @@ def replace_Embedding(module):
     if hasattr(module,'children'):
         for immediate_child_module in module.children():
             replace_Embedding(immediate_child_module)        
+
+def replace_llama_rsmnorm(module):
+    for layer_str in dir(module):
+        layer = getattr(module, layer_str)
+        if type(layer) == transformers.models.llama.modeling_llama.LlamaRMSNorm and requires_grad(layer):
+            new_layer = DPLlamaRMSNorm(
+                layer.weight.data.shape[0],layer.variance_epsilon, device=layer.weight.device, dtype=layer.weight.dtype)
+            new_layer.weight = layer.weight
+            del layer
+
+            setattr(module, layer_str, new_layer)
+
+    # iterate through immediate child modules. Note, the recursion is done by our code no need to use named_modules()
+
+    if hasattr(module,'children'):
+        for immediate_child_module in module.children():
+            replace_llama_rsmnorm(immediate_child_module)
