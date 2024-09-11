@@ -463,7 +463,7 @@ class Trainer(transformers.Trainer):
         inputs = self._prepare_inputs(inputs)
         loss = self.compute_loss(model, inputs)  # (batch_size,).
 
-        if hasattr(self.args,"deepspeed_config"):
+        if self.args.deepspeed_config:
             model.backward(loss)
         else:
             loss.backward()
