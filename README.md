@@ -51,6 +51,9 @@ for i, batch in enumerate(dataloader):
         optimizer.zero_grad()
 ```
 
+## Foundation model release
+We release DP vision foundation models in [v2.1](https://github.com/awslabs/fast-differential-privacy/releases/tag/v2.1): VisionTransformer models (ViT; ~86M param) following [Pre-training Differentially Private Models with Limited Public Data](https://arxiv.org/abs/2402.18752) in NeurIPS 2024, pre-trained on ImageNet-1k with AdamW (1k classes, 1 million images) and ImageNet-11k with DP-AdamW (11k classes, 11 million images). More DP foundation models to come!
+
 ## Highlights
 1. This library enables large model training in the **multi-GPU distributed setting** and **supports mixed precision training** under DeepSpeed and FSDP.
 <p align="center">
@@ -128,18 +131,20 @@ Please consider citing the following if you want to use this library in your wor
 This codebase is largely inspired by [[Opacus (v0.15)]](https://github.com/pytorch/opacus), [[Private transformers (v0.2.3)]](https://github.com/lxuechen/private-transformers), [[Private Vision]](https://github.com/woodyx218/private_vision), and [[FastGradClip]](https://github.com/ppmlguy/fastgradclip).
 
 ## References
-[1] Goodfellow, Ian. "Efficient per-example gradient computations." arXiv preprint arXiv:1510.01799 (2015).
+[1] Ian Goodfellow. "Efficient per-example gradient computations." arXiv preprint arXiv:1510.01799 (2015).
 
-[2] Li, Xuechen, Florian Tramer, Percy Liang, and Tatsunori Hashimoto. "Large language models can be strong differentially private learners." arXiv preprint arXiv:2110.05679 (2021).
+[2] Xuechen Li, Florian Tramer, Percy Liang, and Tatsunori Hashimoto. "Large language models can be strong differentially private learners." ICLR (2022).
 
-[3] Bu, Zhiqi, Jialin Mao, and Shiyun Xu. "Scalable and Efficient Training of Large Convolutional Neural Networks with Differential Privacy." arXiv preprint arXiv:2205.10683 (2022).
+[3] Zhiqi Bu, Jialin Mao, and Shiyun Xu. "Scalable and Efficient Training of Large Convolutional Neural Networks with Differential Privacy." NeurIPS (2022).
 
-[4] Bu, Zhiqi, Yu-Xiang Wang, Sheng Zha, and George Karypis. "Differentially Private Optimization on Large Model at Small Cost." arXiv preprint arXiv:2210.00038 (2022).
+[4] Zhiqi Bu, Yu-Xiang Wang, Sheng Zha, and George Karypis. "Differentially Private Optimization on Large Model at Small Cost." ICML (2023).
 
-[5] Yousefpour, Ashkan, Igor Shilov, Alexandre Sablayrolles, Davide Testuggine, Karthik Prasad, Mani Malek, John Nguyen et al. "Opacus: User-friendly differential privacy library in PyTorch." arXiv preprint arXiv:2109.12298 (2021).
+[5] Ashkan Yousefpour, Igor Shilov, Alexandre Sablayrolles, Davide Testuggine, Karthik Prasad, Mani Malek, John Nguyen et al. "Opacus: User-friendly differential privacy library in PyTorch." arXiv preprint arXiv:2109.12298 (2021).
 
-[6] Bu, Zhiqi, Yu-Xiang Wang, Sheng Zha, and George Karypis. "Differentially Private Bias-Term only Fine-tuning of Foundation Models." arXiv preprint arXiv:2210.00036 (2022).
+[6] Zhiqi Bu, Yu-Xiang Wang, Sheng Zha, and George Karypis. "Differentially Private Bias-Term Fine-tuning of Foundation Models." ICML (2024).
 
-[7] Abadi, Martin, et al. "Deep learning with differential privacy." Proceedings of the 2016 ACM SIGSAC Conference on Computer and Communications Security.
+[7] Martin Abadi, et al. "Deep learning with differential privacy." Proceedings of the 2016 ACM SIGSAC Conference on Computer and Communications Security.
 
-[8] Bu, Zhiqi, Yu-Xiang Wang, Sheng Zha, and George Karypis. "Automatic clipping: Differentially private deep learning made easier and stronger." arXiv preprint arXiv:2206.07136 (2022).
+[8] Zhiqi Bu, Yu-Xiang Wang, Sheng Zha, and George Karypis. "Automatic clipping: Differentially private deep learning made easier and stronger." NeurIPS (2023).
+
+[9] Zhiqi Bu, Xinwei Zhang, Mingyi Hong, Sheng Zha, and George Karypis. "Pre-training Differentially Private Models with Limited Public Data." NeurIPS (2024).
