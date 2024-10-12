@@ -52,7 +52,7 @@ for i, batch in enumerate(dataloader):
 ```
 
 ## Foundation model release
-We release DP vision foundation models in [v2.1](https://github.com/awslabs/fast-differential-privacy/releases/tag/v2.1): VisionTransformer models (ViT; ~86M param) following [Pre-training Differentially Private Models with Limited Public Data](https://arxiv.org/abs/2402.18752) in NeurIPS 2024, pre-trained on ImageNet-1k with AdamW (1k classes, 1 million images) and ImageNet-11k with DP-AdamW (11k classes, 11 million images). More DP foundation models to come!
+We release DP vision foundation models in [v2.1](https://github.com/awslabs/fast-differential-privacy/releases/tag/v2.1): VisionTransformer models (ViT; ~86M param) following [Pre-training Differentially Private Models with Limited Public Data](https://arxiv.org/abs/2402.18752) in NeurIPS 2024. These models have [epsilon=2](https://github.com/awslabs/fast-differential-privacy/releases/download/v2.1/ViT_base_imgnet11k_DP_eps2.pt) and [epsilon=8](https://github.com/awslabs/fast-differential-privacy/releases/download/v2.1/ViT_base_imgnet11k_DP_eps8.pt), pre-trained on ImageNet-1k with AdamW (1k classes, 1 million images) and ImageNet-11k with DP-AdamW (11k classes, 11 million images). More DP foundation models to come!
 
 ## Highlights
 1. This library enables large model training in the **multi-GPU distributed setting** and **supports mixed precision training** under DeepSpeed and FSDP.
