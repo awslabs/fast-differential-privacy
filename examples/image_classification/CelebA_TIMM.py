@@ -99,9 +99,6 @@ def main(args):
             if ((batch_idx + 1) % n_acc_steps == 0) or ((batch_idx + 1) == len(trainloader)):
                 optimizer.step()
                 optimizer.zero_grad()                
-            elif 'nonDP' not in args.clipping_mode:
-                # accumulate per-example gradients but don't take a step yet
-                optimizer.virtual_step()
 
             train_loss += loss.item()
             total += targets.size(0)
