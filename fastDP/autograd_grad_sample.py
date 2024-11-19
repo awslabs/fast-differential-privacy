@@ -95,7 +95,11 @@ def _prepare_sample_grad_or_norm(
         backprops = backprops * backprops.shape[0] # .backprops should save dL_i/ds, not 1/B*dL_i/ds, the mean reduction is taken care of in privacy engine .step()
     compute_layer_grad_sample, _ = _supported_layers_norm_sample_AND_clipping.get(type(layer))
 
-    compute_layer_grad_sample(layer, layer.activations, backprops, clipping_mode)
+    if layer.activations is not None and layer.activations.dtype!=backprops.dtype:
+        common_type=torch.promote_types(layer.activations.dtype,backprops.dtype)
+        compute_layer_grad_sample(layer, layer.activations.to(common_type), backprops.to(common_type), clipping_mode)
+    else:
+        compute_layer_grad_sample(layer, layer.activations, backprops, clipping_mode)
 
     layer.backprops=backprops
 
