@@ -123,7 +123,8 @@ def _per_block_clip_grad(
         if hasattr(layer,'weight') and hasattr(layer.weight,'requires_grad') and layer.weight.requires_grad and hasattr(layer,'activations') and hasattr(layer.weight,'norm_sample'):
             #--- weight, compute clipped gradient
             _, compute_layer_grad = _supported_layers_norm_sample_AND_clipping.get(type(layer))
-            grad_weight = compute_layer_grad(layer, layer.activations, torch.einsum('b...,b->b...',layer.backprops,C), C)
+            common_type=torch.promote_types(layer.activations.dtype,layer.backprops.dtype)
+            grad_weight = compute_layer_grad(layer, layer.activations.to(common_type), torch.einsum('b...,b->b...',layer.backprops.to(common_type),C), C)
             del layer.activations, layer.backprops
             _create_or_extend_private_grad(layer.weight, grad_weight, accumulate_private_grad = False)
             
