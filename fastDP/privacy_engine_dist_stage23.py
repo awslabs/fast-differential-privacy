@@ -304,10 +304,13 @@ class PrivacyEngine_Distributed_Stage_2_and_3(object):
         # deepspeed stage 2 modification-----------
         from deepspeed.runtime.zero.stage_1_and_2 import DeepSpeedZeroOptimizer
 
-        def zero_grad_DP_stage2(self, set_grads_to_None=True):
+        def zero_grad_DP_stage2(self, set_grads_to_None=True, set_to_none=None):
             """
             Zero FP16 parameter grads.
             """
+            if set_to_none is not None:
+                # In transformers 4.29, set_grads_to_None is renamed to set_to_none
+                set_grads_to_None = set_to_none
             #print(self.micro_step_id)
 
             # FP32 grad should never exist.
