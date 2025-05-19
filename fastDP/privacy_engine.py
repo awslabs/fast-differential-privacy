@@ -270,6 +270,44 @@ class PrivacyEngine(object):
         self.module.privacy_engine = self
 
 
+
+        # ------ deepspeed ZERO 1 modification-----------
+        try:
+            from deepspeed.runtime.zero.stage_1_and_2 import DeepSpeedZeroOptimizer
+            from deepspeed import comm as dist
+    
+            def reduce_gradients_DP_stage_1(self, pipeline_parallel=False):
+                world_size = dist.get_world_size(self.dp_process_group)
+                my_rank = dist.get_rank(self.dp_process_group)
+    
+                # with PP we must create ipg buffer, since backward is handled outside zero
+                if pipeline_parallel and self.contiguous_gradients:
+                    self.ipg_buffer = []
+                    buf_0 = torch.empty(int(self.reduce_bucket_size),
+                                        dtype=self.dtype,
+                                        device=torch.cuda.current_device())
+                    self.ipg_buffer.append(buf_0)
+                    self.ipg_index = 0
+    
+                if not self.overlap_comm:
+                    for i, group in enumerate(self.bit16_groups):
+                        for param in group:
+                            if param.grad is not None:
+                                if hasattr(param,'private_grad'):
+                                    param.grad = torch.nan_to_num(param.private_grad).contiguous()#+torch.normal(mean=0, std=param.noise,size=param.size(), device=param.device, dtype=param.dtype)
+                                    del param.private_grad # release memory
+                                    param.grad = param.grad / param.batch_size * self.loss_scale # it works
+                                else:
+                                    param.grad.zero_()
+    
+                                self.reduce_ready_partitions_and_remove_grads(param, i)
+                # reduce any pending grads in either hook/non-hook case
+                self.overlapping_partition_gradients_reduce_epilogue()
+    
+            DeepSpeedZeroOptimizer.reduce_gradients = reduce_gradients_DP_stage_1
+        except:
+            pass
+
     def lock(self):
         """Run this after noisy clipped gradient is created to prevent tampering with it before parameter update."""
         self._locked = True
