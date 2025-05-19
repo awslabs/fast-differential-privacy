@@ -391,7 +391,6 @@ class LayerNormFunction(Function):
         input, weight, bias = ctx.saved_tensors
         
         if ctx.needs_input_grad[0]:
-            # https://stackoverflow.com/questions/67968913/derivative-of-batchnorm2d-in-pytorch
             # xi_hat=(input - mean)/variance+eps
             to_normalize_dim=tuple(range(-len(normalized_shape),0))
             mean=torch.mean(input,dim=to_normalize_dim,keepdim=True)
