@@ -12,7 +12,7 @@ datasets
 diffimg==0.2.3
 docopt==0.6.2
 fastavro==1.4.1
-filelock==3.0.12
+filelock==3.20.3
 fire
 fusepy==2.0.4
 future==0.18.3
